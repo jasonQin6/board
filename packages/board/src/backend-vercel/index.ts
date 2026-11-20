@@ -29,6 +29,9 @@ const asLogin = () => !asDeployment() && !boardToken() && !asGithubActions()
 /** The audience a GitHub Actions token for Vercel's board is made out to, whichever board it names. */
 const GITHUB_AUDIENCE = 'https://api.vercel.com/v1/messageboard'
 
+/** Where that token may go: its audience's origin, or a test's own API on this machine, never anywhere else. */
+const githubTokenGoesTo = (url: URL) => url.origin === new URL(GITHUB_AUDIENCE).origin || /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(url.origin)
+
 /** The job's GitHub Actions token, kept until a minute before it expires: GitHub mints one each time it's asked. */
 let github: { job: string; token: Promise<string>; until: number } | null = null
 
@@ -65,7 +68,6 @@ async function token(): Promise<string> {
   if (asDeployment()) return getVercelOidcToken()
   const set = boardToken()
   if (set) return set
-  if (asGithubActions()) return githubToken()
   // With no login to send, that's what it says, as `http()`'s does, not that the API didn't answer.
   return vercelLogin().catch(() => {
     throw new HttpError(401, 'not_logged_in', "You're not logged in to Vercel.", { hint: 'Run vercel login.', origin: 'handle' })
@@ -96,20 +98,9 @@ export function handTeam(resolve: (() => Promise<string | null>) | null) {
  * The team: the one a CLI that runs board's hands it, `VERCEL_ORG_ID`, the one the deployment's OIDC
  * token names when that token is what goes, or the linked project's (the nearest
  * `.vercel/project.json`). A handed one that throws fails the request with what it threw: the
- * app's own words, not an internal error. A GitHub Actions token names no team, so with none of
- * these, it fails the request with how to name one.
+ * app's own words, not an internal error.
  */
 async function team(): Promise<string | null> {
-  const found = await teamFound()
-  if (found === null && asGithubActions())
-    throw new HttpError(400, 'missing_team', "A GitHub Actions token names no Vercel team, so there's no team's board to use.", {
-      hint: 'Pass --scope <team ID>, or set VERCEL_ORG_ID.',
-      origin: 'handle',
-    })
-  return found
-}
-
-async function teamFound(): Promise<string | null> {
   if (handed) {
     try {
       return await handed()
@@ -133,11 +124,33 @@ async function teamFound(): Promise<string | null> {
   return null
 }
 
+/**
+ * A request with the job's GitHub Actions token: only to Vercel's API, which the token is made out
+ * to, and only on a team the request names, since the token names none. Checked where the token
+ * is sent, so a `board({ fetch })` with credentials of its own is never held to it.
+ */
+async function withGithubActions(input: RequestInfo | URL, init: RequestInit): Promise<Response> {
+  const url = new URL(input instanceof Request ? input.url : String(input))
+  if (!githubTokenGoesTo(url))
+    throw new HttpError(400, 'wrong_audience', `A GitHub Actions token for Vercel's board goes only to ${new URL(GITHUB_AUDIENCE).origin}, not ${url.origin}.`, {
+      origin: 'handle',
+    })
+  if (!url.searchParams.has('teamId') && !url.searchParams.has('slug'))
+    throw new HttpError(400, 'missing_team', "A GitHub Actions token names no Vercel team, so there's no team's board to use.", {
+      hint: 'Pass --scope <team ID>, or set VERCEL_ORG_ID.',
+      origin: 'handle',
+    })
+  const headers = new Headers(init.headers)
+  headers.set('authorization', `Bearer ${await githubToken()}`)
+  return globalThis.fetch(input, { ...init, headers })
+}
+
 const environment: VercelEnvironment = {
   fetch: () => async (input, init = {}) => {
+    if (asGithubActions()) return withGithubActions(input, init)
     const credential = await token()
     // Your login goes through the fetch the CLI that runs board's hands it, which adds its own
-    // credentials. A deployment's token, BOARD_TOKEN, or a GitHub Actions token goes as it is.
+    // credentials. A deployment's token, or BOARD_TOKEN, goes as it is.
     if (asLogin()) return asYou(input, init, credential)
     const headers = new Headers(init.headers)
     headers.set('authorization', `Bearer ${credential}`)

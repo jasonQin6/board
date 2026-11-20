@@ -139,6 +139,28 @@ describe("a GitHub Actions job on Vercel's board", () => {
     expect((await board({ backend: nodeVercel() }).me()).principal).toBe('github:repo:700001')
   })
 
+  it('holds only the requests it sends the token with to a team: a board({ fetch }) with credentials of its own uses their default team', async () => {
+    const api = fakeMessageboard({ tokens: { [RUN]: 'github:repo:700001' } })
+    const { asked } = inActions(api)
+    const own = vi.fn(as(api, 'user:u_ada'))
+    await expect(board({ backend: nodeVercel({ fetch: own }) }).me()).resolves.toMatchObject({ principal: 'vercel:user:u_ada' })
+    expect(own).toHaveBeenCalled()
+    expect(asked).toEqual([])
+  })
+
+  it("never sends the job's token anywhere but Vercel's API, and never asks GitHub for one to send there", async () => {
+    const api = fakeMessageboard({ tokens: { [RUN]: 'github:repo:700001' } })
+    const { asked, sent } = inActions(api)
+    vi.stubEnv('VERCEL_ORG_ID', 'team_test')
+    await expect(board({ backend: nodeVercel({ api: 'https://api.example.com' }) }).post('ci', 'deploy failed')).rejects.toMatchObject({
+      status: 400,
+      code: 'wrong_audience',
+      origin: 'handle',
+    })
+    expect(asked).toEqual([])
+    expect(sent).toEqual([])
+  })
+
   it("says why GitHub gave no token, as the handle's own error, not that Vercel's API didn't answer", async () => {
     const api = fakeMessageboard({ tokens: { [RUN]: 'github:repo:700001' } })
     const { sent } = inActions(api, () => Response.json({ message: 'Unable to get ACTIONS_ID_TOKEN_REQUEST_URL env variable' }, { status: 403 }))

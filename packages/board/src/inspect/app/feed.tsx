@@ -89,7 +89,7 @@ export function Feed(props: {
       </div>
       {behind && (
         <button className="jump" onClick={toBottom}>
-          new messages ↓
+          有新消息 ↓
         </button>
       )}
     </div>

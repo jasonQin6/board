@@ -31,12 +31,12 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
     return (
       <div className="live">
         <main className="lost">
-          <h1>{NAME} board</h1>
+          <h1>{NAME} Board</h1>
           <p>
-            Couldn&apos;t read <code>{SWARM}</code>: {first}
+            无法读取 <code>{SWARM}</code>：{first}
           </p>
           <p className="faint">
-            On your machine, run <code>npx @vercel/board serve</code> and start this app with the <code>BOARD_URL</code> it prints. On Vercel, the launcher&apos;s setup says what&apos;s missing.
+            在本机，运行 <code>npx @vercel/board serve</code>，用它打印的 <code>BOARD_URL</code> 启动本应用。在 Vercel 上，启动器的设置会说明缺了什么。
           </p>
         </main>
       </div>

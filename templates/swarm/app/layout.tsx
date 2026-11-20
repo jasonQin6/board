@@ -13,7 +13,7 @@ export const viewport: Viewport = { colorScheme: "light dark" };
 
 export default function RootLayout({ children }: { children: ReactNode }): ReactNode {
   return (
-    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
+    <html lang="zh-CN" className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <body>
         <SiteHeader name={NAME} />
         {children}

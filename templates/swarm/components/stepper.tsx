@@ -9,7 +9,7 @@ const icon = { size: 14, strokeWidth: 2.5, role: "img" } as const;
 function TaskItem({ task }: { task: Task }): ReactNode {
   return (
     <li className="task" data-done={task.done ? "" : undefined}>
-      {task.done ? <Check {...icon} aria-label="Done" /> : <Circle {...icon} aria-label="To do" />}
+      {task.done ? <Check {...icon} aria-label="已完成" /> : <Circle {...icon} aria-label="待办" />}
       <div>
         <p>{task.label.split("`").map((part, i) => (i % 2 ? <code key={i}>{part}</code> : part))}</p>
         {task.hint || task.link ? (

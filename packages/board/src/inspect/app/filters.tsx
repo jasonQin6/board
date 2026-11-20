@@ -7,7 +7,7 @@ import { Panel, Suggest, type KnownLabels } from './ui.tsx'
 // message or its thread's root; `a|b` for either value), and words in the text.
 
 export function describe(label: string): string {
-  return label.includes('=') ? label.replace('|', ' or ') : `has ${label}`
+  return label.includes('=') ? label.replace('|', ' 或 ') : `含 ${label}`
 }
 
 export function FilterButton(props: {
@@ -43,8 +43,8 @@ export function FilterButton(props: {
 
   return (
     <Panel
-      title="filters"
-      triggerTitle="filter messages"
+      title="筛选"
+      triggerTitle="筛选消息"
       trigger={
         <>
           <ListFilter size={15} strokeWidth={1.75} />
@@ -56,7 +56,7 @@ export function FilterButton(props: {
     >
       <div className="filter-form">
         <div className="filter-row">
-          <span className="filter-name">from</span>
+          <span className="filter-name">来源</span>
           <div className="segments">
             {['', 'board', ...props.sources].map((source) => (
               <button
@@ -64,20 +64,20 @@ export function FilterButton(props: {
                 className={`segment${(filter.from ?? '') === source ? ' on' : ''}`}
                 onClick={() => onChange({ ...filter, ...(source ? { from: source } : { from: undefined }) })}
               >
-                {source || 'any'}
+                {source || '任意'}
               </button>
             ))}
           </div>
         </div>
         <div className="filter-row">
-          <span className="filter-name">labels</span>
+          <span className="filter-name">标签</span>
           <div className="grow">
             {filter.label.length > 0 && (
               <div className="chips">
                 {filter.label.map((label) => (
                   <span key={label} className="label">
                     {describe(label)}
-                    <button title="remove" onClick={() => onChange({ ...filter, label: filter.label.filter((l) => l !== label) })}>
+                    <button title="移除" onClick={() => onChange({ ...filter, label: filter.label.filter((l) => l !== label) })}>
                       <X size={11} />
                     </button>
                   </span>
@@ -89,28 +89,28 @@ export function FilterButton(props: {
                 value={key}
                 onChange={setKey}
                 items={[...props.known.keys()]}
-                placeholder="key"
+                placeholder="键"
                 onEnter={() => (value ? addLabel() : valueRef.current?.querySelector('input')?.focus())}
               />
               <span className="faint">=</span>
               <div ref={valueRef} className="grow">
-                <Suggest value={value} onChange={setValue} items={[...(props.known.get(key.trim()) ?? [])]} placeholder="any (or a|b)" onEnter={addLabel} />
+                <Suggest value={value} onChange={setValue} items={[...(props.known.get(key.trim()) ?? [])]} placeholder="任意（或 a|b）" onEnter={addLabel} />
               </div>
               <button className="send small" disabled={!key.trim()} onClick={addLabel}>
-                add
+                添加
               </button>
             </div>
           </div>
         </div>
         <div className="filter-row">
-          <span className="filter-name">text</span>
+          <span className="filter-name">文本</span>
           <label className="suggest grow">
-            <input value={text} onChange={(event) => setText(event.target.value)} placeholder="contains…" spellCheck={false} />
+            <input value={text} onChange={(event) => setText(event.target.value)} placeholder="包含…" spellCheck={false} />
           </label>
         </div>
         {count > 0 && (
           <button className="clear" onClick={() => onChange({ label: [] })}>
-            clear filters
+            清除筛选
           </button>
         )}
       </div>
@@ -121,7 +121,7 @@ export function FilterButton(props: {
 /** The active filters, each removable, under the view's header. */
 export function FilterChips({ filter, onChange }: { filter: Filter; onChange: (filter: Filter) => void }) {
   const chips: { key: string; text: string; remove: Filter }[] = [
-    ...(filter.from ? [{ key: 'from', text: `from ${filter.from}`, remove: { ...filter, from: undefined } }] : []),
+    ...(filter.from ? [{ key: 'from', text: `来源 ${filter.from}`, remove: { ...filter, from: undefined } }] : []),
     ...filter.label.map((label) => ({ key: `label:${label}`, text: describe(label), remove: { ...filter, label: filter.label.filter((l) => l !== label) } })),
     ...(filter.text ? [{ key: 'text', text: `“${filter.text}”`, remove: { ...filter, text: undefined } }] : []),
   ]
@@ -131,13 +131,13 @@ export function FilterChips({ filter, onChange }: { filter: Filter; onChange: (f
       {chips.map((chip) => (
         <span key={chip.key} className="label">
           {chip.text}
-          <button title="remove" onClick={() => onChange(chip.remove)}>
+          <button title="移除" onClick={() => onChange(chip.remove)}>
             <X size={11} />
           </button>
         </span>
       ))}
       <button className="clear" onClick={() => onChange({ label: [] })}>
-        clear
+        清除
       </button>
     </div>
   )

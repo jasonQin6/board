@@ -150,7 +150,7 @@ export function Ago({ iso, prefix = '' }: { iso: string; prefix?: string }) {
   return (
     <span className="time" title={new Date(iso).toLocaleString()}>
       {prefix}
-      {age < 5_000 ? 'now' : ago(iso)}
+      {age < 5_000 ? '刚刚' : ago(iso)}
     </span>
   )
 }

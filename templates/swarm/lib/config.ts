@@ -50,11 +50,11 @@ export const DEFAULTS: Config = {
 export const ABOUT_SCENARIO: Record<Scenario, { label: string; about: string }> = {
   pipeline: {
     label: "Pipeline",
-    about: "A planner splits the goal into tasks. Agents take one each and open a pull request, and another agent reviews it.",
+    about: "一个规划者把目标拆成任务。代理们各领一个并开出 pull request，另一个代理做评审。",
   },
   review: {
     label: "Review",
-    about: "Agents read the repo an area each, a second agent checks what they found, and one writes the report. Nothing is pushed.",
+    about: "代理们各读仓库的一个领域，第二个代理检查它们的发现，最后一个写报告。不推送任何改动。",
   },
 };
 

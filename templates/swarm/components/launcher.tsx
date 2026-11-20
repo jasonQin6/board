@@ -30,18 +30,18 @@ export function LauncherView({ result, inspect, models, runs, swarm, origin }: L
   const { steps, found } = result;
   const { done, of, ready } = progress(steps);
   const active = runs.some((run) => run.phase === "running" || run.phase === "preparing");
-  const join = `Read ${origin}/join.md and follow it to take tasks from the ${swarm} queue on our team's board.`;
+  const join = `阅读 ${origin}/join.md 并照着做，从我们团队板面的 ${swarm} 队列领取任务。`;
   const watch = (
     <section className="panel">
-      <h2>Watch it</h2>
-      <p className="note">Every task, agent, and message under {swarm}, live.</p>
+      <h2>观看运行</h2>
+      <p className="note">{swarm} 下的每个任务、代理和消息，实时呈现。</p>
       <p>
         <a className="button" href="/live">
-          Open the live view
+          打开实时视图
         </a>
       </p>
       <p className="note">
-        Or the whole board from your terminal: <code className="inline">{inspect}</code>. Want a coding agent on your machine to help? <Copy text={join} label="Copy this prompt" quiet />
+        或在终端看整个板面：<code className="inline">{inspect}</code>。想让本机的编码代理帮忙？<Copy text={join} label="复制这段提示词" quiet />
       </p>
     </section>
   );
@@ -57,15 +57,15 @@ export function LauncherView({ result, inspect, models, runs, swarm, origin }: L
           <Launch repos={found.repos} models={models} install={found.install} />
         </section>
         <section className="panel">
-          <h2>Runs</h2>
+          <h2>运行</h2>
           <Runs runs={runs} swarm={swarm} now={Date.now()} />
         </section>
         {watch}
         <details className="panel setup">
           <summary>
-            Setup
+            设置
             <span>
-              {done} of {of} done
+              已完成 {done}/{of}
             </span>
           </summary>
           <Stepper steps={steps} />
@@ -83,7 +83,7 @@ export function LauncherView({ result, inspect, models, runs, swarm, origin }: L
         <p className="lede">{lede}</p>
         <div className="hero-links">
           <span className="progress">
-            {done} of {of} done
+            已完成 {done}/{of}
           </span>
         </div>
       </section>

@@ -120,7 +120,7 @@ export function EmojiPicker(props: { trigger: ReactNode; onPick: (name: string) 
   }
   return (
     <Popover.Root open={open} onOpenChange={change}>
-      <Popover.Trigger className="tool" aria-label="add a reaction" title="add a reaction">
+      <Popover.Trigger className="tool" aria-label="添加表情" title="添加表情">
         {props.trigger}
       </Popover.Trigger>
       <Popover.Portal>
@@ -181,7 +181,7 @@ export function Suggest(props: {
         <Autocomplete.Positioner className="positioner" align="start" sideOffset={4}>
           <Frame>
             <Autocomplete.Popup className="menu list">
-              <Autocomplete.Empty className="empty-item">nothing yet: type a new one</Autocomplete.Empty>
+              <Autocomplete.Empty className="empty-item">还没有：输入即可新建</Autocomplete.Empty>
               <Autocomplete.List>
                 {(item: string) => (
                   <Autocomplete.Item key={item} value={item} className="item">
@@ -224,14 +224,14 @@ export function LabelEditor(props: {
   return (
     <div className="labels-editor">
       {entries.length === 0 ? (
-        <p className="hint">no labels</p>
+        <p className="hint">没有标签</p>
       ) : (
         <div className="label-rows">
           {entries.map(([k, v]) => (
             <div key={k} className="label-row">
               <span className="label-key">{k}</span>
               <span className="label-value">{v || '—'}</span>
-              <button className="tool" title={`remove ${k}`} onClick={() => props.onUnset(k)}>
+              <button className="tool" title={`移除 ${k}`} onClick={() => props.onUnset(k)}>
                 <X size={13} />
               </button>
             </div>
@@ -243,16 +243,16 @@ export function LabelEditor(props: {
           value={key}
           onChange={setKey}
           items={[...props.known.keys()].filter((k) => !(k in props.labels) && !k.startsWith('board.'))}
-          placeholder="key"
+          placeholder="键"
           autoFocus
           onEnter={() => valueRef.current?.querySelector('input')?.focus()}
         />
         <span className="faint">=</span>
         <div ref={valueRef} className="grow">
-          <Suggest value={value} onChange={setValue} items={[...(props.known.get(key.trim()) ?? [])]} placeholder="value" onEnter={add} />
+          <Suggest value={value} onChange={setValue} items={[...(props.known.get(key.trim()) ?? [])]} placeholder="值" onEnter={add} />
         </div>
         <button className="send small" disabled={!key.trim()} onClick={add}>
-          set
+          设置
         </button>
       </div>
     </div>
@@ -344,9 +344,9 @@ export function Header(props: { title: string; meta?: string | undefined; live?:
       <span className="spacer" />
       {props.children}
       {props.live && (
-        <span className={`live ${props.live}`} title={props.live === 'live' ? 'receiving board events' : 'the feed reconnects on its own'}>
+        <span className={`live ${props.live}`} title={props.live === 'live' ? '正在接收板面事件' : '断线后会自行重连'}>
           <i />
-          {props.live === 'live' ? 'live' : props.live}
+          {props.live === 'live' ? '实时' : props.live === 'connecting' ? '连接中' : '重连中'}
         </span>
       )}
     </header>
@@ -428,5 +428,5 @@ export function Ask(props: AskProps & { label: ReactNode; title: string; trigger
 export function Unlisted({ listed }: { listed: Listed<unknown> }) {
   if (listed.is === 'here') return null
   if (listed.is === 'failed') return <p className="empty error">{listed.why}</p>
-  return <p className="empty">loading…</p>
+  return <p className="empty">加载中…</p>
 }

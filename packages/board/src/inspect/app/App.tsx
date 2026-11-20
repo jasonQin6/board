@@ -16,7 +16,10 @@ import { byWritten, channelRows, channelThreads, filtering, isTask, knownLabels,
 import { Ask, Header, nativeMenu, ResizeHandle, type KnownLabels } from './ui.tsx'
 import { boardWords, cadence, firstLine, until } from './words.ts'
 
-const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`
+const count = (n: number, noun: string) => `${n} ${noun}`
+
+/** 标签页标题里的视图名（路径与 URL 保持原文）。 */
+const VIEW_TITLES = { activity: '动态', tasks: '任务' } as const
 
 // --- sizes you drag, remembered -------------------------------------------------------
 
@@ -115,15 +118,15 @@ function NameGate({ done }: { done: () => void }) {
           event.preventDefault()
           const name = new FormData(event.currentTarget).get('profile')?.toString().trim()
           if (!name) return
-          void board.setProfile({ name }).then((took) => (took ? done() : setError(`couldn't post as ${name}`)))
+          void board.setProfile({ name }).then((took) => (took ? done() : setError(`无法以 ${name} 发言`)))
         }}
       >
-        <label htmlFor="profile">Who's posting?</label>
-        <p>You'll write as a profile of this app, shown as your name via it.</p>
-        <input id="profile" name="profile" autoFocus placeholder="your name, e.g. ada" pattern="[A-Za-z][A-Za-z0-9\-]{0,31}" title="a letter, then up to 31 letters, numbers, and hyphens" required />
+        <label htmlFor="profile">谁在发言？</label>
+        <p>你将以本应用的一个身份发言，显示为「你的名字 经本应用」。</p>
+        <input id="profile" name="profile" autoFocus placeholder="你的名字，如 ada" pattern="[A-Za-z][A-Za-z0-9\-]{0,31}" title="字母开头，其后最多 31 个字母、数字或连字符" required />
         {error && <p className="error">{error}</p>}
         <button type="submit" className="send">
-          continue
+          继续
         </button>
       </form>
     </div>
@@ -172,15 +175,15 @@ export function App() {
   // The tab says which board too, so two inspectors side by side tell apart.
   const named = boardWords(state.discovery).name
   useEffect(() => {
-    document.title = `${current.view === 'channel' ? `#${current.channel}` : current.view === 'settings' ? `${current.section} · settings` : current.view === 'missing' ? 'nothing here' : current.view} · ${named}`
+    document.title = `${current.view === 'channel' ? `#${current.channel}` : current.view === 'settings' ? '设置' : current.view === 'missing' ? '无此页面' : VIEW_TITLES[current.view]} · ${named}`
   }, [where.path, named])
 
   const known = useMemo(() => knownLabels(state), [state.messages])
   const viewer = useMemo(() => (state.me ? board.viewerOf(state.me) : null), [state.me])
 
   if (naming) return <NameGate done={() => setNaming(false)} />
-  if (failed) return <div className="boot error">error: {failed}</div>
-  if (!state.me || !viewer) return <div className="boot">connecting…</div>
+  if (failed) return <div className="boot error">错误：{failed}</div>
+  if (!state.me || !viewer) return <div className="boot">连接中…</div>
 
   const platforms = Object.fromEntries((state.discovery?.sync ?? []).map((entry) => [entry.key, entry.platform]))
   const names = namesOf(state)
@@ -192,7 +195,7 @@ export function App() {
   const expand = (
     <button
       className={`tool${sidebar.collapsed ? '' : ' only-narrow'}`}
-      title="show the sidebar"
+      title="显示侧栏"
       onClick={() => {
         sidebar.collapse(false)
         setNav(true)
@@ -214,7 +217,7 @@ export function App() {
               else sidebar.collapse(true)
             }}
           />
-          <ResizeHandle side="right" label="resize the sidebar" onDrag={sidebar.drag} onDone={sidebar.done} onStep={sidebar.step} />
+          <ResizeHandle side="right" label="拖动调整侧栏宽度" onDrag={sidebar.drag} onDone={sidebar.done} onStep={sidebar.step} />
         </nav>
       )}
       <main className="main">
@@ -226,14 +229,14 @@ export function App() {
         {current.view === 'settings' && <Settings state={state} viewer={viewer} now={now} lead={expand} where={where} section={current.section} open={current.open} />}
         {current.view === 'missing' && (
           <>
-            <Header title="nothing here" lead={expand} />
-            <p className="empty">no such page</p>
+            <Header title="无此页面" lead={expand} />
+            <p className="empty">没有这个页面</p>
           </>
         )}
       </main>
       {where.thread !== null && (
         <aside className="pane" style={{ width: pane.width }}>
-          <ResizeHandle side="left" label="resize the thread" onDrag={pane.drag} onDone={pane.done} onStep={pane.step} />
+          <ResizeHandle side="left" label="拖动调整线程面板宽度" onDrag={pane.drag} onDone={pane.done} onStep={pane.step} />
           <ThreadPane key={where.thread} id={where.thread} state={state} viewer={viewer} now={now} known={known} />
         </aside>
       )}
@@ -280,7 +283,7 @@ function Activity(props: { state: State; options: RowOptions; known: KnownLabels
   const pending = filtering(filter) ? [] : state.pending.filter((post) => post.re === null)
   return (
     <>
-      <Header title="activity" meta={state.activityRefused === null ? 'the latest across every channel' : 'the latest of what this page has loaded'} live={state.live} lead={lead}>
+      <Header title="动态" meta={state.activityRefused === null ? '所有频道的最新消息' : '本页已加载内容的最新消息'} live={state.live} lead={lead}>
         <FilterControls filters={props.filters} />
       </Header>
       <FilterChips filter={filter} onChange={props.filters.setFilter} />
@@ -288,7 +291,7 @@ function Activity(props: { state: State; options: RowOptions; known: KnownLabels
         {/* A board that can't read its feed's newest events across channels: its own words, where they would be. */}
         {state.activityRefused !== null && <p className="empty error">{state.activityRefused}</p>}
         {state.activityRefused === null && messages.length === 0 && pending.length === 0 && (
-          <p className="empty">{filtering(filter) ? 'nothing matches these filters' : state.cursor === null ? 'loading…' : 'nothing here yet: start a thread below'}</p>
+          <p className="empty">{filtering(filter) ? '没有符合筛选条件的内容' : state.cursor === null ? '加载中…' : '还没有内容：在下方发起一个线程'}</p>
         )}
         <Messages
           messages={messages}
@@ -297,7 +300,7 @@ function Activity(props: { state: State; options: RowOptions; known: KnownLabels
             ...options,
             context: (m) => (
               <span className="where">
-                {m.re === null ? 'in ' : 'replied in '}
+                {m.re === null ? '在 ' : '回复于 '}
                 <Link to={`/c/${m.channel}${m.re === null ? '' : `?thread=${m.re}`}`}>#{m.channel}</Link>
               </span>
             ),
@@ -308,7 +311,7 @@ function Activity(props: { state: State; options: RowOptions; known: KnownLabels
       <Composer
         scope="activity"
         role="main"
-        placeholder="start a thread…"
+        placeholder="发起线程…"
         known={known}
         channels={Object.keys(state.channels).sort()}
         tasks={{ state }}
@@ -354,7 +357,7 @@ function Channel(props: { channel: string; state: State; options: RowOptions; kn
     <>
       <Header
         title={`#${channel}`}
-        meta={info?.threads !== undefined && info.messages !== undefined ? `${count(info.threads, 'thread')} · ${count(info.messages, 'message')}` : undefined}
+        meta={info?.threads !== undefined && info.messages !== undefined ? `${count(info.threads, '个线程')} · ${count(info.messages, '条消息')}` : undefined}
         live={state.live}
         lead={props.lead}
       >
@@ -363,7 +366,7 @@ function Channel(props: { channel: string; state: State; options: RowOptions; kn
       <FilterChips filter={filter} onChange={props.filters.setFilter} />
       <Feed scope={channel} first={roots[0]?.id ?? ''} last={`${newest}+${pending.length}`} older={() => board.loadOlder(channel)}>
         {roots.length === 0 && pending.length === 0 && (
-          <p className="empty">{loading ? 'loading…' : filtering(filter) ? 'nothing matches these filters' : 'no messages yet: say something'}</p>
+          <p className="empty">{loading ? '加载中…' : filtering(filter) ? '没有符合筛选条件的内容' : '还没有消息：说点什么吧'}</p>
         )}
         <Messages messages={roots} now={options.now} options={{ ...options, summary: (m) => summaries.get(m.id) }} {...(listed ? { at: activeAt } : {})} />
         <Pendings posts={pending} me={state.me!} after={roots.at(-1)} afterHasReplies={(summaries.get(roots.at(-1)?.id ?? '')?.count ?? 0) > 0} />
@@ -371,7 +374,7 @@ function Channel(props: { channel: string; state: State; options: RowOptions; kn
       <Composer
         scope={`channel:${channel}`}
         role="main"
-        placeholder={`message #${channel}…`}
+        placeholder={`发消息到 #${channel}…`}
         known={props.known}
         tasks={{ state }}
         onSend={({ text, noSync, labels, files, task, later }) => void board.send({ channel, re: null, text, noSync, labels, files, ...(task ? { task } : {}), ...(later ? { later } : {}) })}
@@ -402,22 +405,22 @@ function ThreadPane(props: { id: string; state: State; viewer: Viewer; now: numb
   const options: RowOptions = { me: state.me!.actor, now: props.now, known: props.known, platforms, schemas: state.schemas, names }
   return (
     <>
-      <Header title={isTask(t?.root) ? 'task' : 'thread'} meta={t ? `in #${t.root.channel}` : undefined}>
+      <Header title={isTask(t?.root) ? '任务' : '线程'} meta={t ? `在 #${t.root.channel}` : undefined}>
         {t && !isTask(t.root) && !t.root.deleted && viewer.may('label', t.root.channel) && (
           <Ask
             label={<ListTodo size={15} strokeWidth={1.75} />}
             className="tool"
-            title="make this thread a task"
-            submit="make it a task"
-            note="You own it, and agents claim it."
+            title="把这个线程变成任务"
+            submit="设为任务"
+            note="你拥有它，代理来认领它。"
             fields={[
-              { name: 'needs', placeholder: 'needs: task IDs it waits for (optional)' },
-              { name: 'for', placeholder: 'for one of your profiles (optional)', items: profilesOf(state, viewer.principal) },
+              { name: 'needs', placeholder: 'needs：它等待的任务 ID（可选）' },
+              { name: 'for', placeholder: 'for：你的某个身份（可选）', items: profilesOf(state, viewer.principal) },
             ]}
             onSubmit={(values) => void board.makeTask(id, { needs: taskIds(values.needs ?? ''), for: values.for ? actorFor(viewer.principal, values.for) : null })}
           />
         )}
-        <button className="tool" title="close (esc)" onClick={() => navigate(here({ thread: null }))}>
+        <button className="tool" title="关闭（Esc）" onClick={() => navigate(here({ thread: null }))}>
           <X size={15} strokeWidth={1.75} />
         </button>
       </Header>
@@ -426,7 +429,7 @@ function ThreadPane(props: { id: string; state: State; viewer: Viewer; now: numb
         <dl className="facts thread-facts" {...nativeMenu}>
           {synced.length > 0 && (
             <>
-              <dt>synced</dt>
+              <dt>已同步</dt>
               <dd className="copies">
                 {synced.map((copy) => (
                   <span key={copy.target}>
@@ -437,7 +440,7 @@ function ThreadPane(props: { id: string; state: State; viewer: Viewer; now: numb
                     ) : (
                       copy.target
                     )}
-                    {copy.undelivered && <span className="error-text"> didn't arrive: {copy.undelivered}</span>}
+                    {copy.undelivered && <span className="error-text"> 未送达：{copy.undelivered}</span>}
                   </span>
                 ))}
               </dd>
@@ -445,12 +448,12 @@ function ThreadPane(props: { id: string; state: State; viewer: Viewer; now: numb
           )}
           {scheduled.map((schedule) => (
             <div key={schedule.id} className="fact">
-              <dt>later</dt>
+              <dt>定时</dt>
               <dd>
                 {schedule.next ? until(schedule.next, props.now) : ''} · {cadence(schedule)} · {firstLine(schedule.text)}{' '}
                 {(schedule.by.principal === viewer.principal || viewer.may('manage', schedule.channel)) && (
                   <button className="clear" onClick={() => void board.cancelSchedule(schedule.id)}>
-                    cancel
+                    取消
                   </button>
                 )}
               </dd>
@@ -460,11 +463,11 @@ function ThreadPane(props: { id: string; state: State; viewer: Viewer; now: numb
       )}
       <Feed scope={`thread:${id}`} first={id} last={`${t?.replies.at(-1)?.id ?? id}+${t?.pending.length ?? 0}`}>
         {!t ? (
-          <p className="empty">{missing ? 'no such thread' : 'loading…'}</p>
+          <p className="empty">{missing ? '没有这个线程' : '加载中…'}</p>
         ) : (
           <>
             <Messages messages={[t.root]} now={props.now} options={options} />
-            <div className="divider">{t.replies.length === 1 ? '1 reply' : `${t.replies.length} replies`}</div>
+            <div className="divider">{t.replies.length} 条回复</div>
             <Messages messages={t.replies} now={props.now} options={options} after={t.root} />
             <Pendings posts={t.pending} me={state.me!} after={t.replies.at(-1)} />
           </>
@@ -474,7 +477,7 @@ function ThreadPane(props: { id: string; state: State; viewer: Viewer; now: numb
         <Composer
           scope={`thread:${id}`}
           role="thread"
-          placeholder="reply to thread…"
+          placeholder="回复线程…"
           known={props.known}
           onSend={({ text, noSync, labels, files, later }) => void board.send({ channel: t.root.channel, re: id, text, noSync, labels, files, ...(later ? { later } : {}) })}
           onEditLast={() => {

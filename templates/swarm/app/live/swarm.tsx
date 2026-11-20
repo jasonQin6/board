@@ -8,15 +8,36 @@ import { WebMcp } from "@/components/webmcp";
 /** What a task shows as: its state, with a claim split by whether its lease still holds. */
 type Shown = "working" | "stalled" | "held" | "ready" | "waiting" | "done" | "failed" | "canceled";
 const GROUPS: { key: Shown; title: string }[] = [
-  { key: "working", title: "Working" },
-  { key: "stalled", title: "Stalled" },
-  { key: "held", title: "Held for a person" },
-  { key: "ready", title: "Ready" },
-  { key: "waiting", title: "Waiting" },
-  { key: "done", title: "Done" },
-  { key: "failed", title: "Failed" },
-  { key: "canceled", title: "Canceled" },
+  { key: "working", title: "进行中" },
+  { key: "stalled", title: "已停滞" },
+  { key: "held", title: "留给一个人" },
+  { key: "ready", title: "就绪" },
+  { key: "waiting", title: "等待中" },
+  { key: "done", title: "已完成" },
+  { key: "failed", title: "失败" },
+  { key: "canceled", title: "已取消" },
 ];
+
+/** 任务呈现状态的说法（data-state 与键名保持原文）。 */
+const SHOWN_WORDS: Record<Shown, string> = {
+  working: "进行中",
+  stalled: "已停滞",
+  held: "留置",
+  ready: "就绪",
+  waiting: "等待中",
+  done: "已完成",
+  failed: "失败",
+  canceled: "已取消",
+};
+
+/** 运行阶段的说法（data-phase 与键名保持原文）。 */
+const PHASE_WORDS: Record<string, string> = {
+  preparing: "准备中",
+  running: "运行中",
+  done: "已完成",
+  stopped: "已停止",
+  failed: "失败",
+};
 
 /** The states a task has ended in. */
 const ENDED = ["completed", "failed", "canceled"];
@@ -39,13 +60,13 @@ const within = (channel: string, filter: string | null) => !filter || channel ==
 
 function span(ms: number): string {
   const s = Math.max(0, Math.round(ms / 1000));
-  if (s < 60) return `${s}s`;
-  if (s < 3600) return `${Math.floor(s / 60)}m`;
-  if (s < 86_400) return `${Math.floor(s / 3600)}h`;
-  return `${Math.floor(s / 86_400)}d`;
+  if (s < 60) return `${s} 秒`;
+  if (s < 3600) return `${Math.floor(s / 60)} 分钟`;
+  if (s < 86_400) return `${Math.floor(s / 3600)} 小时`;
+  return `${Math.floor(s / 86_400)} 天`;
 }
-const ago = (at: string, now: number) => span(now - Date.parse(at));
-const firstLine = (text: string) => text.split("\n", 1)[0] || "(empty)";
+const ago = (at: string, now: number) => `${span(now - Date.parse(at))}前`;
+const firstLine = (text: string) => text.split("\n", 1)[0] || "（空）";
 
 export function Swarm({ first, channel: firstChannel, task: firstTask }: { first: Snapshot; channel: string | null; task: string | null }) {
   const [snap, setSnap] = useState(first);
@@ -139,30 +160,30 @@ export function Swarm({ first, channel: firstChannel, task: firstTask }: { first
     <div className="shell">
       <WebMcp snap={snap} show={setOpen} />
       <header>
-        <h1>{snap.name} board</h1>
+        <h1>{snap.name} Board</h1>
         <span className="state" data-live={typeof live === "string" ? live : "down"}>
           <i aria-hidden />
-          {typeof live === "string" ? live : `down: ${live.problem}`}
+          {typeof live === "string" ? (live === "live" ? "实时" : "重连中") : `掉线：${live.problem}`}
         </span>
         <span className="counts">
-          <b>{count("working")}</b> working · <b>{count("ready")}</b> ready · <b>{count("held")}</b> held · <b>
+          进行中 <b>{count("working")}</b> · 就绪 <b>{count("ready")}</b> · 留置 <b>{count("held")}</b> · 已完成{" "}
+          <b>
             {count("done")}
             {snap.finishedCapped ? "+" : ""}
-          </b>{" "}
-          done
+          </b>
           {count("stalled") > 0 && (
             <>
               {" · "}
-              <b className="bad">{count("stalled")}</b> stalled
+              停滞 <b className="bad">{count("stalled")}</b>
             </>
           )}
         </span>
       </header>
 
-      <nav className="pane" aria-label="Channels and agents">
+      <nav className="pane" aria-label="频道与代理">
         {snap.runs.length > 0 && (
           <>
-            <h2>Runs</h2>
+            <h2>运行</h2>
             <ul>
               {snap.runs.map((entry) => (
                 <li key={entry.slug}>
@@ -170,7 +191,7 @@ export function Swarm({ first, channel: firstChannel, task: firstTask }: { first
                     <span className="text">{entry.title}</span>
                     <span className="faint run-meta">
                       <i data-phase={entry.phase} aria-hidden />
-                      {entry.phase} · {openIn(entry.channel)} open · ${entry.cost.toFixed(2)} · {ago(entry.createdAt, now)} ago</span>
+                      {PHASE_WORDS[entry.phase] ?? entry.phase} · {openIn(entry.channel)} 个打开 · ${entry.cost.toFixed(2)} · {ago(entry.createdAt, now)}</span>
                     <span className="faint run-meta">
                       {entry.slug}
                     </span>
@@ -180,12 +201,12 @@ export function Swarm({ first, channel: firstChannel, task: firstTask }: { first
             </ul>
           </>
         )}
-        <h2>Channels</h2>
+        <h2>频道</h2>
         <ul>
           <li>
             <button type="button" aria-pressed={!channel} onClick={() => pick(null)}>
               <span>{snap.swarm}</span>
-              <span className="faint">all</span>
+              <span className="faint">全部</span>
             </button>
           </li>
           {channels.map(([path, open]) => (
@@ -197,26 +218,26 @@ export function Swarm({ first, channel: firstChannel, task: firstTask }: { first
             </li>
           ))}
         </ul>
-        <h2>Agents</h2>
+        <h2>代理</h2>
         <ul>
-          {agents.length === 0 && <li className="faint pad">none yet</li>}
+          {agents.length === 0 && <li className="faint pad">还没有</li>}
           {agents.map(([handle, agent]) => (
             <li key={handle} className="agent">
               <span className="who" title={handle}>
                 {handle}
               </span>
-              <span className="faint">{agent.holding > 0 ? `${agent.holding} held` : agent.last ? ago(agent.last, now) : ""}</span>
+              <span className="faint">{agent.holding > 0 ? `持有 ${agent.holding} 个` : agent.last ? ago(agent.last, now) : ""}</span>
             </li>
           ))}
         </ul>
       </nav>
 
-      <section className="pane" aria-label="Flow">
+      <section className="pane" aria-label="动态流">
         {run ? <RunBar run={run} tasks={tasks} now={now} show={setOpen} /> : null}
-        <h2>Flow</h2>
+        <h2>动态流</h2>
         {flow.length === 0 ? (
           <p className="faint pad">
-            {run ? "Nothing yet: the run's log shows here as it clones the repo and plans." : "Nothing here yet. Launch a run from the launcher, or have agents join with JOIN.md."}
+            {run ? "还没有内容：运行在克隆仓库并做规划时，日志会显示在这里。" : "这里还没有内容。从启动器发起一次运行，或让代理按 JOIN.md 加入。"}
           </p>
         ) : (
           <ul className="rows">
@@ -237,19 +258,19 @@ export function Swarm({ first, channel: firstChannel, task: firstTask }: { first
         )}
       </section>
 
-      <aside className="pane" aria-label={open ? "Task" : "Tasks"}>
+      <aside className="pane" aria-label={open ? "任务详情" : "任务"}>
         {open ? (
           <Panel id={open} task={selected} now={now} onClose={() => setOpen(null)} />
         ) : (
           <>
-            <h2>Tasks</h2>
+            <h2>任务</h2>
             {groups.length === 0 && (
               <p className="faint pad">
                 {run && (run.phase === "preparing" || run.phase === "running")
                   ? run.scenario === "pipeline"
-                    ? "No tasks yet. The planner's task shows here once the repo is cloned, and the plan's tasks once it's done."
-                    : "No tasks yet. They show here once the repo is cloned and split into areas."
-                  : `No tasks in ${run?.title ?? channel ?? snap.swarm}`}
+                    ? "还没有任务。仓库克隆完成后，规划者的任务会显示在这里；计划做好后，各任务也会跟上。"
+                    : "还没有任务。仓库克隆完成并被划分领域后，任务会显示在这里。"
+                  : `${run?.title ?? channel ?? snap.swarm} 中没有任务`}
               </p>
             )}
             {groups.map((group) => {
@@ -272,7 +293,7 @@ export function Swarm({ first, channel: firstChannel, task: firstTask }: { first
                       </li>
                     ))}
                   </ul>
-                  {finished && snap.finishedCapped && <p className="faint pad">and older ones</p>}
+                  {finished && snap.finishedCapped && <p className="faint pad">以及更早的</p>}
                 </div>
               );
             })}
@@ -293,7 +314,7 @@ function Composer({ placeholder, action, send, hint }: { placeholder: string; ac
     const result = await send(text);
     if (result.ok) {
       setText("");
-      setState({ busy: false, said: "Sent.", bad: false });
+      setState({ busy: false, said: "已发送。", bad: false });
     } else setState({ busy: false, said: result.problem, bad: true });
   }
   return (
@@ -319,7 +340,7 @@ function Composer({ placeholder, action, send, hint }: { placeholder: string; ac
       <div className="composer-foot">
         <span className={state.bad ? "bad" : "faint"}>{state.said ?? hint}</span>
         <button type="submit" disabled={state.busy || !text.trim()}>
-          {state.busy ? "Sending" : action}
+          {state.busy ? "发送中" : action}
         </button>
       </div>
     </form>
@@ -345,13 +366,13 @@ const gist = (text: string | null, max = 220) => {
 };
 
 function outcomeOf(task: Task, review: Task | undefined, repo: string): Outcome {
-  const verdict = review && ENDED.includes(review.state) ? (review.state === "completed" ? "review approved" : `review asked for changes${review.note ? `: ${gist(review.note, 120)}` : ""}`) : review ? "review pending" : null;
-  if (task.state === "failed") return { kind: "failed", line: `Failed: ${gist(task.note) || "no reason given"}` };
-  if (task.state === "canceled") return { kind: "canceled", line: `Canceled${task.note ? `: ${gist(task.note)}` : ""}` };
+  const verdict = review && ENDED.includes(review.state) ? (review.state === "completed" ? "评审通过" : `评审要求修改${review.note ? `：${gist(review.note, 120)}` : ""}`) : review ? "评审待完成" : null;
+  if (task.state === "failed") return { kind: "failed", line: `失败：${gist(task.note) || "未说明原因"}` };
+  if (task.state === "canceled") return { kind: "canceled", line: `已取消${task.note ? `：${gist(task.note)}` : ""}` };
   const prs = prsOf(task, repo);
-  if (prs.length) return { kind: "pr", line: [`Pull request ${prs.map(prName).join(", ")} opened`, verdict].filter(Boolean).join(" · ") };
-  if (task.role === "work") return { kind: "none", line: `No change made: ${gist(task.note) || "the agent found nothing to change"}` };
-  return { kind: "done", line: gist(task.note) || "Done" };
+  if (prs.length) return { kind: "pr", line: [`已开出 pull request ${prs.map(prName).join("、")}`, verdict].filter(Boolean).join(" · ") };
+  if (task.role === "work") return { kind: "none", line: `未做改动：${gist(task.note) || "代理没有发现需要改的地方"}` };
+  return { kind: "done", line: gist(task.note) || "完成" };
 }
 
 /**
@@ -374,19 +395,19 @@ function Results({ run, tasks: all, show }: { run: RunView; tasks: Task[]; show:
   const over = run.phase !== "running" && run.phase !== "preparing";
 
   const headline = [
-    counts.pr && `${counts.pr} ${counts.pr === 1 ? "pull request" : "pull requests"} opened`,
-    counts.none && `${counts.none} with no change needed`,
-    counts.done && `${counts.done} done`,
-    counts.failed && `${counts.failed} failed`,
-    counts.canceled && `${counts.canceled} canceled`,
-    !over && working && `${working} still going`,
+    counts.pr && `开出 ${counts.pr} 个 pull request`,
+    counts.none && `${counts.none} 个无需改动`,
+    counts.done && `${counts.done} 个完成`,
+    counts.failed && `${counts.failed} 个失败`,
+    counts.canceled && `${counts.canceled} 个取消`,
+    !over && working && `${working} 个仍在进行`,
   ].filter(Boolean);
 
   return (
     <div className="results">
-      <h3>{over ? "Result" : "Results so far"}</h3>
+      <h3>{over ? "结果" : "目前结果"}</h3>
       {outcomes.length === 0 && !report ? (
-        <p className="faint">{over ? `Nothing came of it: ${run.note ?? "the run ended before it had any tasks."}` : "Nothing finished yet. Each task's outcome shows here as it ends."}</p>
+        <p className="faint">{over ? `没有产出：${run.note ?? "运行在产生任何任务之前就结束了。"}` : "还没有完成的任务。每个任务的结局会在这里显示。"}</p>
       ) : (
         <p className="headline">{headline.join(" · ")}</p>
       )}
@@ -407,7 +428,7 @@ function Results({ run, tasks: all, show }: { run: RunView; tasks: Task[]; show:
       <ul>
         {outcomes.map(({ task, outcome }) => (
           <li key={task.id}>
-            <button type="button" onClick={() => show(task.id)} title="Open its work log">
+            <button type="button" onClick={() => show(task.id)} title="打开它的工作日志">
               <i data-outcome={outcome.kind} aria-hidden />
               <span className="what">
                 <span className="text">{task.title}</span>
@@ -432,17 +453,17 @@ function RunBar({ run, tasks, now, show }: { run: RunView; tasks: Task[]; now: n
         {run.goal}
       </p>
       <p className="faint">
-        <i data-phase={run.phase} aria-hidden /> {run.phase} · {run.repo} · {run.scenario} · {run.model} · <span title="An agent starts for each task that's ready or being worked, up to the run's number: the plan decides how many work at once.">{live ? `${run.up} of ${run.agents} agents up` : `${run.agents} ${run.agents === 1 ? "agent" : "agents"}`}</span>
+        <i data-phase={run.phase} aria-hidden /> {PHASE_WORDS[run.phase] ?? run.phase} · {run.repo} · {run.scenario} · {run.model} · <span title="每个就绪或进行中的任务各启动一个代理，上限为运行所设数量：由计划决定同时干活的个数。">{live ? `${run.up}/${run.agents} 个代理在线` : `${run.agents} 个代理`}</span>
       </p>
       <p>
-        <span className="faint">spent</span> ${run.cost.toFixed(2)}
-        {run.budgetUsd !== null && <span className="faint"> of ${run.budgetUsd}</span>}
+        <span className="faint">已花</span> ${run.cost.toFixed(2)}
+        {run.budgetUsd !== null && <span className="faint">，预算 ${run.budgetUsd}</span>}
         {"  "}
-        <span className="faint">tasks</span> {run.settled} of {run.total} settled
+        <span className="faint">任务</span> 已结 {run.settled}/{run.total}
         {left !== null && (
           <>
             {"  "}
-            <span className="faint">time</span> {left > 0 ? `${span(left)} left` : "up"}
+            <span className="faint">剩余</span> {left > 0 ? `剩 ${span(left)}` : "时间到"}
           </>
         )}
         {live && (
@@ -451,13 +472,13 @@ function RunBar({ run, tasks, now, show }: { run: RunView; tasks: Task[]; now: n
             className="stop"
             disabled={stopping === "…"}
             onClick={async () => {
-              if (!window.confirm(`Stop "${run.title}"? Its agents stop and its sandboxes go.`)) return;
+              if (!window.confirm(`停止「${run.title}」？它的代理将停止，沙箱将被回收。`)) return;
               setStopping("…");
               const result = await stop(run.slug);
               setStopping(result.ok ? null : result.problem);
             }}
           >
-            {stopping === "…" ? "Stopping" : "Stop"}
+            {stopping === "…" ? "停止中" : "停止"}
           </button>
         )}
       </p>
@@ -466,9 +487,9 @@ function RunBar({ run, tasks, now, show }: { run: RunView; tasks: Task[]; now: n
       <Results run={run} tasks={tasks} show={show} />
       {run.phase === "running" && (
         <Composer
-          placeholder={run.scenario === "pipeline" ? "Ask the swarm for more: add a CHANGELOG entry for each optimization…" : "Ask the swarm to look at something: check the retry logic in lib/fetch.ts…"}
-          action="Add task"
-          hint={run.scenario === "pipeline" ? "Becomes a task, and a review of it, that the next free agent takes." : "Becomes an area to review, and a check of it."}
+          placeholder={run.scenario === "pipeline" ? "给蜂群加点活：为每处优化各补一条 CHANGELOG 条目…" : "让蜂群看看某处：检查 lib/fetch.ts 里的重试逻辑…"}
+          action="添加任务"
+          hint={run.scenario === "pipeline" ? "会成为一个任务及其评审，由下一个空闲的代理接手。" : "会成为一个待评审的领域，及其检查项。"}
           send={(text) => ask(run.slug, text)}
         />
       )}
@@ -478,9 +499,9 @@ function RunBar({ run, tasks, now, show }: { run: RunView; tasks: Task[]; now: n
 
 /** The one fact that matters for a row in its group. */
 function chip(task: Task, key: Shown, now: number): string {
-  if (key === "working" && task.lease) return `lease ${span(Date.parse(task.lease) - now)}`;
-  if (key === "stalled" && task.lease) return `lease ended ${ago(task.lease, now)} ago`;
-  if (key === "waiting" && task.needs.length) return `waits for ${task.needs.length} ${task.needs.length === 1 ? "task" : "tasks"}`;
+  if (key === "working" && task.lease) return `租约剩 ${span(Date.parse(task.lease) - now)}`;
+  if (key === "stalled" && task.lease) return `租约已于 ${ago(task.lease, now)}到期`;
+  if (key === "waiting" && task.needs.length) return `等待 ${task.needs.length} 个任务`;
   return ago(task.last?.at ?? task.createdAt, now);
 }
 
@@ -505,22 +526,22 @@ function Panel({ id, task, now, onClose }: { id: string; task: Task | null; now:
   return (
     <>
       <h2 className="head">
-        <span>{task ? task.channel : "Thread"}</span>
+        <span>{task ? task.channel : "线程"}</span>
         <button type="button" onClick={onClose}>
-          Close
+          关闭
         </button>
       </h2>
       {history === null ? (
-        <p className="faint pad">Loading…</p>
+        <p className="faint pad">加载中…</p>
       ) : "problem" in history ? (
-        <p className="pad bad">Couldn&apos;t read {id}: {history.problem}</p>
+        <p className="pad bad">无法读取 {id}：{history.problem}</p>
       ) : (
         <div className="thread">
           {task && key && (
             <p className="chips">
               <span className="state-chip">
                 <i data-state={key} aria-hidden />
-                {key}
+                {SHOWN_WORDS[key]}
               </span>
               {task.holder && <span className="who">{task.holder}</span>}
               {key !== "ready" && <span className="faint">{chip(task, key, now)}</span>}
@@ -530,16 +551,16 @@ function Panel({ id, task, now, onClose }: { id: string; task: Task | null; now:
           {task?.note && <p className="note">{task.note}</p>}
           <Entry line={history.root} now={now} />
           <h3>
-            Work log <span className="faint">{history.replies.length}</span>
+            工作日志 <span className="faint">{history.replies.length}</span>
           </h3>
-          {history.replies.length === 0 && <p className="faint">no replies yet</p>}
+          {history.replies.length === 0 && <p className="faint">还没有回复</p>}
           {history.replies.map((reply) => (
             <Entry key={reply.id} line={reply} now={now} />
           ))}
           <Composer
-            placeholder="Steer this task: use the existing helper in lib/util.ts…"
-            action="Reply"
-            hint="Agents read people's replies when they take a task."
+            placeholder="给这个任务指路：用 lib/util.ts 里现成的帮助函数…"
+            action="回复"
+            hint="代理领任务时会读人们的回复。"
             send={(text) => say(id, text)}
           />
         </div>
@@ -553,7 +574,7 @@ function Entry({ line, now }: { line: Line; now: number }) {
   return (
     <article>
       <p className="by">
-        <span className="who">{line.author}</span> <time dateTime={line.at}>{ago(line.at, now)} ago</time>
+        <span className="who">{line.author}</span> <time dateTime={line.at}>{ago(line.at, now)}</time>
       </p>
       <p className="body">{line.text}</p>
     </article>

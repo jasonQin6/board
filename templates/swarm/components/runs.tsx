@@ -15,8 +15,17 @@ function left(run: Run, now: number): string | null {
   if (run.phase !== "running" && run.phase !== "preparing") return null;
   const deadline = run.prepared?.deadline ?? Date.parse(run.createdAt) + (run.config.minutes ?? 240) * 60_000;
   const minutes = Math.max(0, Math.round((deadline - now) / 60_000));
-  return minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m left` : `${minutes}m left`;
+  return minutes >= 60 ? `剩 ${Math.floor(minutes / 60)} 小时 ${minutes % 60} 分` : `剩 ${minutes} 分钟`;
 }
+
+/** 运行阶段的说法（data-phase 与键名保持原文）。 */
+const PHASE_WORDS: Record<string, string> = {
+  preparing: "准备中",
+  running: "运行中",
+  done: "已完成",
+  stopped: "已停止",
+  failed: "失败",
+};
 
 function StopButton({ slug }: { slug: string }): ReactNode {
   const router = useRouter();
@@ -36,7 +45,7 @@ function StopButton({ slug }: { slug: string }): ReactNode {
           })
         }
       >
-        {pending ? "Stopping" : "Stop"}
+        {pending ? "停止中" : "停止"}
       </button>
       {problem ? <span className="bad">{problem}</span> : null}
     </>
@@ -45,7 +54,7 @@ function StopButton({ slug }: { slug: string }): ReactNode {
 
 /** The latest runs: where each stands, what it has spent against its budget, and how to watch it or stop it. */
 export function Runs({ runs, swarm, now }: { runs: Run[]; swarm: string; now: number }): ReactNode {
-  if (runs.length === 0) return <p className="note">No runs yet. The first one shows here as soon as it&apos;s launched.</p>;
+  if (runs.length === 0) return <p className="note">还没有运行。发起第一次运行后，它就会显示在这里。</p>;
   return (
     <ul className="runs">
       {runs.map((run) => {
@@ -54,27 +63,27 @@ export function Runs({ runs, swarm, now }: { runs: Run[]; swarm: string; now: nu
         return (
           <li key={run.slug} className="run" data-phase={run.phase}>
             <div className="run-head">
-              <span className="phase">{run.phase}</span>
+              <span className="phase">{PHASE_WORDS[run.phase] ?? run.phase}</span>
               <strong>{run.title}</strong>
             </div>
             <p className="run-meta">
-              {run.config.repo} · {ABOUT_SCENARIO[run.config.scenario].label.toLowerCase()} · {run.config.model} · {run.config.agents} {run.config.agents === 1 ? "agent" : "agents"}
+              {run.config.repo} · {ABOUT_SCENARIO[run.config.scenario].label.toLowerCase()} · {run.config.model} · {run.config.agents} 个代理
             </p>
             <dl className="run-stats">
               <div>
-                <dt>spent</dt>
+                <dt>已花</dt>
                 <dd>
                   {money(run.cost)}
-                  {budget !== null ? <span> of {money(budget)}</span> : null}
+                  {budget !== null ? <span> / 预算 {money(budget)}</span> : null}
                 </dd>
               </div>
               <div>
-                <dt>tasks</dt>
-                <dd>{run.total ? `${run.settled} of ${run.total} settled` : "none yet"}</dd>
+                <dt>任务</dt>
+                <dd>{run.total ? `已结 ${run.settled}/${run.total}` : "还没有"}</dd>
               </div>
               {remaining ? (
                 <div>
-                  <dt>time</dt>
+                  <dt>剩余</dt>
                   <dd>{remaining}</dd>
                 </div>
               ) : null}
@@ -86,7 +95,7 @@ export function Runs({ runs, swarm, now }: { runs: Run[]; swarm: string; now: nu
             ) : null}
             {run.note ? <p className="note">{run.note}</p> : null}
             <p className="run-links">
-              <a href={`/live?ch=${encodeURIComponent(`${swarm}${run.slug}`)}`}>Watch</a>
+              <a href={`/live?ch=${encodeURIComponent(`${swarm}${run.slug}`)}`}>观看</a>
               {run.phase === "running" || run.phase === "preparing" ? <StopButton slug={run.slug} /> : null}
             </p>
           </li>

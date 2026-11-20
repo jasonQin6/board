@@ -54,7 +54,7 @@ export function Sidebar({ state, current, onCollapse }: { state: State; current:
   const open = openTasks(state)
   const where = boardWords(state.discovery)
   const [adding, setAdding] = useState(false)
-  const copy = (text: string) => void navigator.clipboard.writeText(text).then(() => toast(`copied ${text}`))
+  const copy = (text: string) => void navigator.clipboard.writeText(text).then(() => toast(`已复制 ${text}`))
   return (
     <div className="sidebar-col">
       <div className="brand">
@@ -62,21 +62,21 @@ export function Sidebar({ state, current, onCollapse }: { state: State; current:
           <span className="name">{where.name}</span>
           {where.at && <span className="at">{where.at}</span>}
         </span>
-        <button className="tool" title="hide the sidebar" onClick={onCollapse}>
+        <button className="tool" title="收起侧栏" onClick={onCollapse}>
           <PanelLeftClose size={15} strokeWidth={1.75} />
         </button>
       </div>
       <div className="sidebar-scroll">
         <Link to="/" className="item" current={current.view === 'activity'}>
-          <span>activity</span>
+          <span>动态</span>
         </Link>
         <Link to="/tasks" className="item" current={current.view === 'tasks'}>
-          <span className="name">tasks</span>
+          <span className="name">任务</span>
           {open !== null && open > 0 && <span className="count">{open}</span>}
         </Link>
         <h2>
-          channels
-          <button className="tool" title="new channel" onClick={() => setAdding(true)}>
+          频道
+          <button className="tool" title="新建频道" onClick={() => setAdding(true)}>
             <Plus size={12} />
           </button>
         </h2>
@@ -93,8 +93,8 @@ export function Sidebar({ state, current, onCollapse }: { state: State; current:
                   key={channel.path}
                   menu={
                     <>
-                      <MenuItem onClick={() => copy(channel.path)}>copy name</MenuItem>
-                      <MenuItem onClick={() => copy(`vb read ${channel.path}`)}>copy vb read command</MenuItem>
+                      <MenuItem onClick={() => copy(channel.path)}>复制名称</MenuItem>
+                      <MenuItem onClick={() => copy(`vb read ${channel.path}`)}>复制 vb read 命令</MenuItem>
                     </>
                   }
                 >
@@ -111,7 +111,7 @@ export function Sidebar({ state, current, onCollapse }: { state: State; current:
       <div className="sidebar-foot">
         <Link to="/settings/access" className="item settings" current={current.view === 'settings'}>
           <Settings size={14} strokeWidth={1.75} />
-          <span>settings</span>
+          <span>设置</span>
         </Link>
         <ProfileMenu me={state.me!} />
       </div>
@@ -135,12 +135,12 @@ function NewChannel({ onDone }: { onDone: () => void }) {
       onKeyDown={(event) => event.key === 'Escape' && onDone()}
       onBlur={(event) => !event.currentTarget.contains(event.relatedTarget) && onDone()}
     >
-      <input name="path" autoFocus placeholder="name, e.g. incidents" pattern="[a-z0-9][a-z0-9_\-]*(/[a-z0-9][a-z0-9_\-]*)*" title="lowercase letters, numbers, - and _, with / between parts" spellCheck={false} />
+      <input name="path" autoFocus placeholder="名称，如 incidents" pattern="[a-z0-9][a-z0-9_\-]*(/[a-z0-9][a-z0-9_\-]*)*" title="小写字母、数字、- 和 _，层级之间用 /" spellCheck={false} />
       <button
         type="button"
         className={`tool${closed ? ' on' : ''}`}
         aria-pressed={closed}
-        title={closed ? 'private: only you get in' : 'make it private'}
+        title={closed ? '私密：只有你能进' : '设为私密'}
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => setClosed(!closed)}
       >
@@ -184,23 +184,23 @@ function ProfileMenu({ me }: { me: Me }) {
           name="profile"
           autoFocus
           defaultValue={editing.name}
-          placeholder="profile name, e.g. reviewer"
+          placeholder="身份名，如 reviewer"
           pattern="[A-Za-z][A-Za-z0-9\-]{0,31}"
-          title="a letter, then up to 31 letters, numbers, and hyphens"
+          title="字母开头，其后最多 31 个字母、数字或连字符"
           required
         />
         <input
           name="avatar"
           type="url"
           defaultValue={editing.avatar ?? ''}
-          placeholder="avatar URL, https://… (optional)"
+          placeholder="头像 URL，https://…（可选）"
           // What the board takes: https, or http on this machine.
           pattern="https://.+|http://(localhost|127\.0\.0\.1)([:\/].*)?"
-          title="an https URL (http only on localhost)"
+          title="https URL（仅 localhost 可用 http）"
         />
         {/* Safari and Firefox don't focus a button you click: without this, the field's blur closes the form before the click. */}
         <button type="submit" className="send small" onMouseDown={(event) => event.preventDefault()}>
-          post as this
+          以此身份发言
         </button>
       </form>
     )
@@ -216,26 +216,26 @@ function ProfileMenu({ me }: { me: Me }) {
     <div className="whoami-wrap" title={me.actor}>
       <Menu
         className="whoami"
-        title="post as"
+        title="发言身份"
         trigger={
           <>
             <Avatar name={shownName(me)} url={me.avatar} size={24} />
-            <span className="as grow">as {shownName(me)}</span>
+            <span className="as grow">以 {shownName(me)}</span>
             <ChevronsUpDown size={13} />
           </>
         }
       >
-        {!board.named && item(`${person} (you)`, null)}
+        {!board.named && item(`${person}（你）`, null)}
         {AGENTS.map((agent) => item(agent, agent))}
         {me.profile !== null && !AGENTS.includes(me.profile) && item(me.profile, me.profile)}
         <MenuSeparator />
         {me.profile !== null && (
           <MenuItem onClick={() => setEditing(remembered(me.profile!))}>
-            {me.profile}'s name and avatar…
+            {me.profile} 的名字和头像…
           </MenuItem>
         )}
-        <MenuItem onClick={() => setEditing({ name: '' })}>another profile…</MenuItem>
-        {!board.named && board.getProfile() !== undefined && <MenuItem onClick={() => void board.setProfile(undefined)}>as inspect started</MenuItem>}
+        <MenuItem onClick={() => setEditing({ name: '' })}>其他身份…</MenuItem>
+        {!board.named && board.getProfile() !== undefined && <MenuItem onClick={() => void board.setProfile(undefined)}>inspect 启动时的身份</MenuItem>}
       </Menu>
     </div>
   )

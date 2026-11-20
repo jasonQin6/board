@@ -366,12 +366,12 @@ describe('the inspector store', () => {
   it('says what is left of a lease, and what a refusal means', () => {
     expect(clock(15 * 60_000)).toBe('15:00')
     expect(clock(59_400)).toBe('1:00') // rounds up, so it reads 0:00 only once it's over
-    expect(clock(3_725_000)).toBe('1h 02m')
+    expect(clock(3_725_000)).toBe('1 小时 02 分')
     expect(clock(-5)).toBe('0:00')
     const board = (code: string) => Object.assign(new Error('the board said so'), { code })
     // A refusal the page knows is said in its words; any other in the board's.
     expect(refusal(board('claim_lost'))).not.toContain('the board said so')
-    expect(refusal(board('claim_lost'))).toMatch(/claim/)
+    expect(refusal(board('claim_lost'))).toMatch(/认领/)
     expect(refusal(board('invalid_needs'))).toBe('the board said so')
   })
 
@@ -379,8 +379,8 @@ describe('the inspector store', () => {
 
   it("names an actor as the board last showed them, or by what their ID says", () => {
     const state: store.State = { ...start, actors: { [`${PRINCIPAL}+claude`]: { kind: 'agent', handle: 'julian/claude', name: 'claude', avatar: null, via: { name: 'Julian', environment: null } } } }
-    expect(store.nameOf(state, `${PRINCIPAL}+claude`)).toBe('claude via Julian')
-    expect(store.nameOf(state, 'local:user:ada+fixer')).toBe('fixer via ada')
+    expect(store.nameOf(state, `${PRINCIPAL}+claude`)).toBe('claude 经 Julian')
+    expect(store.nameOf(state, 'local:user:ada+fixer')).toBe('fixer 经 ada')
     expect(store.nameOf(state, 'local:user:ada')).toBe('ada')
   })
 
@@ -460,7 +460,7 @@ describe('the inspector store', () => {
     expect(principalName({ kind: 'project', projectId: 'prj_1', name: 'web', environments: ['production', 'preview'], teamId: null })).toBe('web (production, preview)')
     expect(principalName({ kind: 'github', repositoryId: null, repository: 'acme/web', workflow: 'ci.yml', branch: 'main' })).toBe('acme/web · ci.yml · main')
     expect(principalName({ kind: 'app', clientId: 'cl_1', name: null })).toBe('cl_1')
-    expect(principalName({ kind: 'everyone' })).toBe('everyone')
+    expect(principalName({ kind: 'everyone' })).toBe('所有人')
   })
 
   // --- schedules ---
@@ -472,16 +472,16 @@ describe('the inspector store', () => {
     expect(store.threadSchedules(state, '17').map((s) => s.id)).toEqual(['s2', 's1'])
     expect(store.threadSchedules(start, '17')).toEqual([]) // not listed yet
 
-    expect(until(at(125), NOW)).toBe('in 2h')
-    expect(until(at(59), NOW)).toBe('in 59m')
-    expect(until(at(3 * 24 * 60), NOW)).toBe('in 3d')
-    expect(until(at(-1), NOW)).toBe('now')
-    expect(span(86_400_000)).toBe('1d')
-    expect(span(90 * 60_000)).toBe('90m')
-    expect(span(36 * 3_600_000)).toBe('36h')
-    expect(cadence({ every: null, times: null, sent: 0, until: null })).toBe('once')
-    expect(cadence({ every: 7 * 86_400_000, times: 4, sent: 1, until: null })).toBe('every 7d · 1 of 4 sent')
-    expect(cadence({ every: 3_600_000, times: null, sent: 12, until: null })).toBe('every 1h · 12 sent')
+    expect(until(at(125), NOW)).toBe('2 小时后')
+    expect(until(at(59), NOW)).toBe('59 分钟后')
+    expect(until(at(3 * 24 * 60), NOW)).toBe('3 天后')
+    expect(until(at(-1), NOW)).toBe('现在')
+    expect(span(86_400_000)).toBe('1 天')
+    expect(span(90 * 60_000)).toBe('90 分钟')
+    expect(span(36 * 3_600_000)).toBe('36 小时')
+    expect(cadence({ every: null, times: null, sent: 0, until: null })).toBe('仅一次')
+    expect(cadence({ every: 7 * 86_400_000, times: 4, sent: 1, until: null })).toBe('每 7 天 · 已发 1/4')
+    expect(cadence({ every: 3_600_000, times: null, sent: 12, until: null })).toBe('每 1 小时 · 已发 12 条')
   })
 
   it('says which board it is: its name and host where it has a name, else its host and where on it', () => {
@@ -514,8 +514,8 @@ describe('the inspector store', () => {
     expect(laterFields({ at: nine.toISOString(), every: '1d', times: 3 })).toEqual({ after: '', at: '2026-11-12T09:05', every: '1d', times: '3' })
     expect(laterFields({ in: '2h' })).toEqual({ after: '2h', at: '', every: '', times: '' })
     expect(laterFields(null)).toEqual({ after: '', at: '', every: '', times: '' })
-    expect(timingWords({ in: '2h', every: '1d' })).toBe('in 2h, every 1d')
-    expect(timingWords({ every: '7d' })).toBe('every 7d')
+    expect(timingWords({ in: '2h', every: '1d' })).toBe('2h 后，每 1d')
+    expect(timingWords({ every: '7d' })).toBe('每 7d')
   })
 
   it("reads every shape a schema's property takes, a bare true or false included", () => {

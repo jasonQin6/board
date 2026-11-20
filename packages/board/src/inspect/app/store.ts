@@ -508,7 +508,7 @@ export type Viewer = {
 
 /**
  * An actor or a principal by name: as the board last said who they are, or else what their ID
- * says, a profile and the last part of its principal's (`local:user:julian+codex` is `codex via julian`).
+ * says, a profile and the last part of its principal's (`local:user:julian+codex` is `codex 经 julian`).
  */
 export function nameOf(state: State, id: string): string {
   const known = state.actors[id]
@@ -516,7 +516,7 @@ export function nameOf(state: State, id: string): string {
   const plus = id.indexOf('+')
   const principal = plus === -1 ? id : id.slice(0, plus)
   const tail = state.actors[principal]?.name ?? principal.slice(principal.lastIndexOf(':') + 1)
-  return plus === -1 ? tail : `${id.slice(plus + 1)} via ${tail}`
+  return plus === -1 ? tail : `${id.slice(plus + 1)} 经 ${tail}`
 }
 
 // --- tasks: a thread with a state ---------------------------------------------------------

@@ -4,7 +4,7 @@ import * as board from './board.ts'
 import { here, Link } from './nav.tsx'
 import { isTask, moves, nameOf, profilesOf, stateNow, type State, type TaskRoot, type TaskState, type Viewer } from './store.ts'
 import { AskForm, Menu, MenuItem, MenuSeparator, nativeMenu, Panel, type AskProps } from './ui.tsx'
-import { clock, firstLine } from './words.ts'
+import { clock, firstLine, STATE_WORDS } from './words.ts'
 
 // A task is a thread with a state, so it shows as one more line on its root: the state, who holds
 // it and for how long, who it's for, what it waits for, and how it ended. The thread pane shows the
@@ -25,7 +25,7 @@ export function StateMark({ state }: { state: TaskState }) {
   return (
     <span className={`task-state ${state}`}>
       <Icon size={13} strokeWidth={2} />
-      {state}
+      {STATE_WORDS[state] ?? state}
     </span>
   )
 }
@@ -53,8 +53,8 @@ export function Lease({ until }: { until: string }) {
   }, [])
   const left = Date.parse(until) - Date.now()
   return (
-    <span className="lease" title={`until ${new Date(until).toLocaleString()}`}>
-      {left > 0 ? `${clock(left)} left` : 'lease ran out'}
+    <span className="lease" title={`至 ${new Date(until).toLocaleString()}`}>
+      {left > 0 ? `剩 ${clock(left)}` : '租约已到期'}
     </span>
   )
 }
@@ -68,7 +68,7 @@ export function Needs({ ids, state }: { ids: string[]; state: State }) {
         return (
           <Link key={id} to={here({ thread: id })} className="need" title={need ? firstLine(need.text) : `#${id}`}>
             #{id}
-            {isTask(need) && <span className={`need-state ${stateNow(need.task, Date.now())}`}>{stateNow(need.task, Date.now())}</span>}
+            {isTask(need) && <span className={`need-state ${stateNow(need.task, Date.now())}`}>{STATE_WORDS[stateNow(need.task, Date.now())] ?? stateNow(need.task, Date.now())}</span>}
           </Link>
         )
       })}
@@ -88,15 +88,15 @@ export function TaskLine({ root, state }: { root: TaskRoot; state: State }) {
       <StateMark state={current} />
       {current === 'claimed' && task.claim && (
         <>
-          <span>by {nameOf(state, task.claim.actor)}</span>
+          <span>{nameOf(state, task.claim.actor)} 认领</span>
           <Lease until={task.claim.until} />
         </>
       )}
-      {lapsed && <span>lease ran out</span>}
-      {task.for && !finished && <span>for {nameOf(state, task.for)}</span>}
+      {lapsed && <span>租约已到期</span>}
+      {task.for && !finished && <span>给 {nameOf(state, task.for)}</span>}
       {task.needs.length > 0 && !finished && (
         <span>
-          needs <Needs ids={task.needs} state={state} />
+          等待 <Needs ids={task.needs} state={state} />
         </span>
       )}
       {current === 'blocked' && task.blocked && (
@@ -147,100 +147,100 @@ export function TaskCard({ root, state, viewer }: { root: TaskRoot; state: State
   if (can.claim)
     next.push(
       <button key="claim" className="act primary" disabled={busy} onClick={() => run(board.claimTask(root.id))}>
-        claim
+        认领
       </button>,
     )
   if (can.held)
     next.push(
       <button key="complete" className="act primary" disabled={busy} onClick={() => setAsking('complete')}>
-        complete…
+        完成…
       </button>,
-      <button key="release" className="act" disabled={busy} title="give it back: it's ready again" onClick={() => run(board.releaseTask(root.id))}>
-        release
+      <button key="release" className="act" disabled={busy} title="交还：它回到就绪" onClick={() => run(board.releaseTask(root.id))}>
+        释放
       </button>,
     )
   if (can.unblock)
     next.push(
       <button key="unblock" className="act primary" disabled={busy} onClick={() => run(board.unblockTask(root.id))}>
-        unblock
+        解除受阻
       </button>,
     )
   if (can.reopen)
     next.push(
-      <button key="reopen" className="act primary" disabled={busy} title="make it ready again, in place" onClick={() => run(board.reopenTask(root.id))}>
-        reopen
+      <button key="reopen" className="act primary" disabled={busy} title="原地恢复为就绪" onClick={() => run(board.reopenTask(root.id))}>
+        重新打开
       </button>,
     )
   const more: ReactNode[] = []
   if (can.held)
     more.push(
       <MenuItem key="renew" onClick={() => run(board.renewTask(root.id))}>
-        renew the lease
+        续租
       </MenuItem>,
       <MenuItem key="fail" onClick={() => setAsking('fail')}>
-        fail…
+        标记失败…
       </MenuItem>,
     )
   if (can.held || can.hold)
     more.push(
       <MenuItem key="block" onClick={() => setAsking('block')}>
-        block for a person…
+        留给一个人处理…
       </MenuItem>,
     )
   if (can.assign)
     more.push(
       <MenuItem key="assign" onClick={() => setAsking('assign')}>
-        assign…
+        指派…
       </MenuItem>,
     )
   if (can.assign && task.for !== null)
     more.push(
       <MenuItem key="pool" onClick={() => run(board.assignTask(root.id, null))}>
-        back to the pool
+        退回池子
       </MenuItem>,
     )
   if (can.cancel)
     more.push(
       <MenuSeparator key="separator" />,
       <MenuItem key="cancel" danger onClick={() => setAsking('cancel')}>
-        cancel the task…
+        取消任务…
       </MenuItem>,
     )
   const asks: Record<Asked, { title: string } & AskProps> = {
     complete: {
-      title: 'complete it',
-      submit: 'complete',
-      fields: [{ name: 'result', placeholder: 'what it came to, in a line or two (optional)', long: true }],
+      title: '完成任务',
+      submit: '完成',
+      fields: [{ name: 'result', placeholder: '结果如何，一两句话（可选）', long: true }],
       onSubmit: ({ result }) => run(board.completeTask(root.id, result || undefined)),
     },
     fail: {
-      title: 'say it failed',
-      submit: 'fail',
-      fields: [{ name: 'reason', placeholder: 'why it failed', required: true, long: true }],
+      title: '说明失败原因',
+      submit: '失败',
+      fields: [{ name: 'reason', placeholder: '它为什么失败', required: true, long: true }],
       onSubmit: ({ reason }) => run(board.failTask(root.id, reason!)),
     },
     block: {
-      title: 'hold it for a person',
-      submit: 'block',
-      note: can.held ? 'Ends your claim.' : undefined,
+      title: '把任务留给一个人',
+      submit: '留下',
+      note: can.held ? '这会结束你的认领。' : undefined,
       fields: [
-        { name: 'kind', placeholder: 'kind, e.g. needs_input (optional)', items: HOLD_KINDS },
-        { name: 'reason', placeholder: 'what a person has to answer', required: true, long: true },
+        { name: 'kind', placeholder: '类型，如 needs_input（可选）', items: HOLD_KINDS },
+        { name: 'reason', placeholder: '需要一个人来回答的问题', required: true, long: true },
       ],
       onSubmit: ({ kind, reason }) => run(board.blockTask(root.id, reason!, kind || undefined)),
     },
     assign: {
-      title: `assign it to one of ${nameOf(state, task.owner)}'s profiles`,
-      submit: 'assign',
-      note: 'Only that profile claims it then.',
-      fields: [{ name: 'profile', placeholder: 'profile, e.g. fixer', required: true, items: profilesOf(state, task.owner) }],
+      title: `指派给 ${nameOf(state, task.owner)} 的一个身份`,
+      submit: '指派',
+      note: '之后只有那个身份能认领它。',
+      fields: [{ name: 'profile', placeholder: '身份，如 fixer', required: true, items: profilesOf(state, task.owner) }],
       onSubmit: ({ profile }) => run(board.assignTask(root.id, actorFor(task.owner, profile!))),
     },
     cancel: {
-      title: 'cancel it',
-      submit: 'cancel the task',
-      note: current === 'claimed' ? "Ends its holder's claim." : undefined,
-      fields: [{ name: 'reason', placeholder: "why it's no longer wanted", required: true, long: true }],
+      title: '取消任务',
+      submit: '取消任务',
+      note: current === 'claimed' ? '这会结束当前持有者的认领。' : undefined,
+      fields: [{ name: 'reason', placeholder: '为什么不再需要它', required: true, long: true }],
       onSubmit: ({ reason }) => run(board.cancelTask(root.id, reason!)),
     },
   }
@@ -251,24 +251,24 @@ export function TaskCard({ root, state, viewer }: { root: TaskRoot; state: State
         <StateMark state={current} />
         {current === 'claimed' && task.claim && (
           <>
-            <span>by {nameOf(state, task.claim.actor)}</span>
+            <span>{nameOf(state, task.claim.actor)} 认领</span>
             <Lease until={task.claim.until} />
           </>
         )}
-        {lapsed && task.claim && <span>{nameOf(state, task.claim.actor)}'s lease ran out</span>}
+        {lapsed && task.claim && <span>{nameOf(state, task.claim.actor)} 的租约已到期</span>}
       </div>
       <dl className="facts" {...nativeMenu}>
-        <dt>owner</dt>
+        <dt>创建者</dt>
         <dd>{nameOf(state, task.owner)}</dd>
         {task.for && (
           <>
-            <dt>for</dt>
+            <dt>负责</dt>
             <dd>{nameOf(state, task.for)}</dd>
           </>
         )}
         {task.needs.length > 0 && (
           <>
-            <dt>needs</dt>
+            <dt>等待</dt>
             <dd>
               <Needs ids={task.needs} state={state} />
             </dd>
@@ -276,7 +276,7 @@ export function TaskCard({ root, state, viewer }: { root: TaskRoot; state: State
         )}
         {task.blocked && (
           <>
-            <dt>held</dt>
+            <dt>留置</dt>
             <dd>
               {task.blocked.kind && <span className="badge">{task.blocked.kind}</span>} {task.blocked.reason}
             </dd>
@@ -284,13 +284,13 @@ export function TaskCard({ root, state, viewer }: { root: TaskRoot; state: State
         )}
         {task.result && (
           <>
-            <dt>result</dt>
+            <dt>结果</dt>
             <dd>{task.result}</dd>
           </>
         )}
         {task.reason && (
           <>
-            <dt>reason</dt>
+            <dt>原因</dt>
             <dd>{task.reason}</dd>
           </>
         )}
@@ -299,7 +299,7 @@ export function TaskCard({ root, state, viewer }: { root: TaskRoot; state: State
         <div className="acts" ref={acts}>
           {next}
           {more.length > 0 && (
-            <Menu className="act" title="more" trigger={<Ellipsis size={14} strokeWidth={1.75} />}>
+            <Menu className="act" title="更多" trigger={<Ellipsis size={14} strokeWidth={1.75} />}>
               {more}
             </Menu>
           )}
@@ -310,8 +310,8 @@ export function TaskCard({ root, state, viewer }: { root: TaskRoot; state: State
           <AskForm {...asks[asking]} disabled={busy} onDone={() => setAsking(null)} />
         </Panel>
       )}
-      {can.held && <p className="hint">Held by this tab: a reload loses the claim.</p>}
-      {can.elsewhere && <p className="hint">Yours, but not from this tab: it's held until the lease ends.</p>}
+      {can.held && <p className="hint">由本标签页持有：刷新会丢失认领。</p>}
+      {can.elsewhere && <p className="hint">是你的，但不在本标签页：租约到期前一直由别处持有。</p>}
     </section>
   )
 }

@@ -43,9 +43,9 @@ export function BlockCard({ block, schema, registry }: { block: BlockView; schem
           {block.schema}
           <span className="faint">@{block.version}</span>
         </Link>
-        {registry && !schema && <span className="faint">unknown schema</span>}
+        {registry && !schema && <span className="faint">未知 schema</span>}
         <span className="spacer" />
-        <button className={`tool${raw ? ' on' : ''}`} aria-pressed={raw} title={raw ? 'show its fields' : 'show its JSON'} onClick={() => setRaw(!raw)}>
+        <button className={`tool${raw ? ' on' : ''}`} aria-pressed={raw} title={raw ? '显示字段' : '显示 JSON'} onClick={() => setRaw(!raw)}>
           <Braces size={13} strokeWidth={1.75} />
         </button>
       </div>
@@ -54,7 +54,7 @@ export function BlockCard({ block, schema, registry }: { block: BlockView; schem
           {JSON.stringify(block.data, null, 2)}
         </pre>
       ) : fields.length === 0 ? (
-        <div className="block-fields faint">no fields</div>
+        <div className="block-fields faint">没有字段</div>
       ) : (
         <dl className="block-fields" {...nativeMenu}>
           {fields.map((field) => (

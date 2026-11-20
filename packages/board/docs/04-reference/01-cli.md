@@ -276,7 +276,7 @@ itself.
   gets the deployment's OIDC token, or else `BOARD_TOKEN`, or else a GitHub
   Actions OIDC token made out to `https://api.vercel.com/v1/messageboard`, or
   else your Vercel login. A GitHub token names no Vercel team, so in Actions
-  `--scope <team ID>` or `VERCEL_ORG_ID` names it.
+  `--scope <team>` (its slug or ID) or `VERCEL_ORG_ID` names it.
 - **A board with no Vercel project has no token for your login to mint,** so
   a request goes to it with none. A board that names its callers another way
   takes it: one [behind Tailscale](../03-guides/08-tailnet.md), say. Any other

@@ -130,7 +130,7 @@ describe("a GitHub Actions job on Vercel's board", () => {
       code: 'missing_team',
       origin: 'handle',
       message: "A GitHub Actions token names no Vercel team, so there's no team's board to use.",
-      hint: 'Pass --scope <team ID>, or set VERCEL_ORG_ID.',
+      hint: 'Pass --scope <team>, or set VERCEL_ORG_ID.',
     })
     expect(sent).toEqual([])
     // A team named in code, or in the environment, is the board's.

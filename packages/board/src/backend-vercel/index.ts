@@ -137,7 +137,7 @@ async function withGithubActions(input: RequestInfo | URL, init: RequestInit): P
     })
   if (!url.searchParams.has('teamId') && !url.searchParams.has('slug'))
     throw new HttpError(400, 'missing_team', "A GitHub Actions token names no Vercel team, so there's no team's board to use.", {
-      hint: 'Pass --scope <team>, or set VERCEL_ORG_ID.',
+      hint: 'Pass --scope <team ID>, or set VERCEL_ORG_ID.',
       origin: 'handle',
     })
   const headers = new Headers(init.headers)

@@ -2050,7 +2050,7 @@ const reply = await team.wait({ re: msg.id, after: msg.id }, { timeout: '30m' })
   command is, and a deployment's project or `BOARD_TOKEN` is `vb`'s to be. The team defaults
   to `VERCEL_ORG_ID`, the deployment's when its token is what goes, or `.vercel/project.json`'s. A GitHub
   token names no team, so with none of these a request fails before it's sent (`missing_team`): pass
-  `--scope <team>` or set `VERCEL_ORG_ID`. With `BOARD_URL` set (in Node),
+  `--scope <team ID>` or set `VERCEL_ORG_ID`. With `BOARD_URL` set (in Node),
   it's that board instead (on `http()`, internal), whatever the name: it
   sends a token in the order in [Tokens](#tokens), through Deployment
   Protection, and `board({ fetch })` never goes there. The default build, for

@@ -16,23 +16,23 @@ import { principalName, said } from './words.ts'
 
 /** Who a grant, or a question, can be about, and what the page asks to name one. */
 const KINDS = {
-  user: { label: 'user', fields: [{ name: 'id', placeholder: 'email, or a user ID' }] },
+  user: { label: 'user', fields: [{ name: 'id', placeholder: '邮箱，或用户 ID' }] },
   project: {
     label: 'project',
     fields: [
-      { name: 'id', placeholder: 'project name or ID' },
-      { name: 'environment', placeholder: 'environment (production)' },
+      { name: 'id', placeholder: '项目名或 ID' },
+      { name: 'environment', placeholder: '环境（production）' },
     ],
   },
   github: {
     label: 'github',
     fields: [
       { name: 'id', placeholder: 'owner/repository' },
-      { name: 'workflow', placeholder: 'workflow, e.g. ci.yml (any)' },
-      { name: 'branch', placeholder: 'branch (any)' },
+      { name: 'workflow', placeholder: 'workflow，如 ci.yml（任意）' },
+      { name: 'branch', placeholder: '分支（任意）' },
     ],
   },
-  app: { label: 'app', fields: [{ name: 'id', placeholder: 'app slug or client ID' }] },
+  app: { label: 'app', fields: [{ name: 'id', placeholder: '应用 slug 或 client ID' }] },
 } as const
 type Kind = keyof typeof KINDS
 const isKind = (value: string | null): value is Kind => value !== null && value in KINDS
@@ -52,17 +52,17 @@ export function Access(props: { state: State; viewer: Viewer; where: Where }) {
           <NewGrant />
         </Actions>
       )}
-      <h3>you</h3>
+      <h3>你</h3>
       <div className="grant-row" {...nativeMenu}>
         <span className="faint" />
         <span className="grant-who">{nameOf(state, me.actor)}</span>
         <Can can={me.can} />
       </div>
-      <h3>explain</h3>
+      <h3>解释权限</h3>
       <Explain state={state} where={props.where} />
-      <h3>grants</h3>
+      <h3>授权</h3>
       <Unlisted listed={grants} />
-      {grants.is === 'here' && grants.items.length === 0 && <p className="empty">no grants</p>}
+      {grants.is === 'here' && grants.items.length === 0 && <p className="empty">没有授权</p>}
       {grants.is === 'here' && grants.items.map((grant) => <GrantRow key={grant.id} grant={grant} state={state} revoke={viewer.manages} />)}
     </>
   )
@@ -74,7 +74,7 @@ function Can({ can }: { can: Record<string, 'all' | readonly string[]> }) {
     <span className="grant-can">
       {Object.entries(can).map(([pattern, gives]) => (
         <span key={pattern} className="label">
-          <b>{pattern}</b> {gives === 'all' ? 'all' : gives.length > 0 ? gives.join(' ') : 'none'}
+          <b>{pattern}</b> {gives === 'all' ? '全部' : gives.length > 0 ? gives.join(' ') : '无'}
         </span>
       ))}
     </span>
@@ -88,7 +88,7 @@ function GrantRow({ grant, state, revoke }: { grant: GrantView; state: State; re
       <span className="faint">{grant.id}</span>
       <span className="grant-who" title={who}>
         {who}
-        {grant.capped && <span className="badge" title="a person's team role caps what it gives them">capped by role</span>}
+        {grant.capped && <span className="badge" title="个人的团队角色会限制其所得">受角色限制</span>}
       </span>
       <Can can={grant.can} />
       <span className="faint small">
@@ -97,12 +97,12 @@ function GrantRow({ grant, state, revoke }: { grant: GrantView; state: State; re
             {nameOf(state, grant.by)} · <Ago iso={grant.at} />
           </>
         ) : (
-          "the board's own"
+          '板面自带'
         )}
       </span>
       {revoke && (
-        <button className="act quiet" onClick={() => confirm(`Revoke ${grant.id}? ${who} can't use what it gave from their next request.`) && void board.revokeGrant(grant.id)}>
-          revoke
+        <button className="act quiet" onClick={() => confirm(`撤销 ${grant.id}？${who} 从下一个请求起将无法再使用它授予的权限。`) && void board.revokeGrant(grant.id)}>
+          撤销
         </button>
       )}
     </div>
@@ -145,7 +145,7 @@ function Who<K extends string>(props: { kinds: readonly K[]; labels: Record<K, s
 }
 
 const EXPLAIN_KINDS = ['you', 'user', 'project', 'github', 'app'] as const
-const EXPLAIN_LABELS = { you: 'you', user: 'user', project: 'project', github: 'github', app: 'app' }
+const EXPLAIN_LABELS = { you: '你', user: 'user', project: 'project', github: 'github', app: 'app' }
 const FIELDS = ['id', 'environment', 'workflow', 'branch']
 
 /** Asks the board which grants decide a channel, for you or a principal you name. The question lives in the URL. */
@@ -185,11 +185,11 @@ function Explain({ state, where }: { state: State; where: Where }) {
       {...fieldMenu}
     >
       <div className="explain-ask">
-        <Suggest prefix="#" value={channel} onChange={setChannel} items={Object.keys(state.channels).sort()} placeholder="channel" onEnter={ask} />
-        <span className="faint">for</span>
+        <Suggest prefix="#" value={channel} onChange={setChannel} items={Object.keys(state.channels).sort()} placeholder="频道" onEnter={ask} />
+        <span className="faint">对象</span>
         <Who kinds={EXPLAIN_KINDS} labels={EXPLAIN_LABELS} kind={kind} onKind={setKind} fields={fields} onField={(name, value) => setFields((current) => ({ ...current, [name]: value }))} />
         <button type="submit" className="send small" disabled={!channel.trim()}>
-          explain
+          查询
         </button>
       </div>
       {answer && 'problem' in answer && <p className="hint error-text">{answer.problem}</p>}
@@ -204,24 +204,24 @@ function Explained({ explanation, subject, state }: { explanation: Explanation; 
   return (
     <div className="explained" {...nativeMenu}>
       <p>
-        In <b>#{channel}</b>, {subject} may {can.length > 0 ? <b>{can.join(', ')}</b> : <b>do nothing</b>}.
+        在 <b>#{channel}</b> 中，{subject} 可以 {can.length > 0 ? <b>{can.join('、')}</b> : <b>什么都不能做</b>}。
       </p>
       <dl className="facts">
-        <dt>decided</dt>
+        <dt>依据</dt>
         <dd>
           {pattern === null ? (
-            can.length > 0 ? 'by no grant: the board lets its own code and deployments in' : 'by no grant: nothing lets them in'
+            can.length > 0 ? '没有授权：板面允许自己的代码和部署进入' : '没有授权：没有任何授权放行'
           ) : (
             <>
-              at <b>{pattern}</b>, by {level === 'principal' ? 'a grant that names them' : level === 'group' ? 'a grant that names a group they are in' : 'a grant for everyone'}
-              {over.length > 0 && <span className="faint"> (over {over.join(', ')})</span>}
+              匹配 <b>{pattern}</b>，来自 {level === 'principal' ? '点名他们的授权' : level === 'group' ? '他们所在群组的授权' : '面向所有人的授权'}
+              {over.length > 0 && <span className="faint">（覆盖 {over.join('、')}）</span>}
             </>
           )}
         </dd>
         {capped !== null && (
           <>
-            <dt>capped</dt>
-            <dd>by their team role: {capped}</dd>
+            <dt>受限</dt>
+            <dd>受其团队角色限制：{capped}</dd>
           </>
         )}
       </dl>
@@ -233,7 +233,7 @@ function Explained({ explanation, subject, state }: { explanation: Explanation; 
 }
 
 const GRANT_KINDS = ['user', 'project', 'github', 'app', 'all-users', 'all-projects', 'all-apps', 'everyone'] as const
-const GRANT_LABELS = { user: 'user', project: 'project', github: 'github', app: 'app', 'all-users': 'every user', 'all-projects': 'every project', 'all-apps': 'every app', everyone: 'everyone' }
+const GRANT_LABELS = { user: 'user', project: 'project', github: 'github', app: 'app', 'all-users': '所有用户', 'all-projects': '所有项目', 'all-apps': '所有应用', everyone: '所有人' }
 
 /** The principal the fields name, as a grant takes one. */
 function principalOf(kind: (typeof GRANT_KINDS)[number], fields: Record<string, string>): PrincipalInput {
@@ -271,10 +271,10 @@ function NewGrant() {
   }
   return (
     <Panel
-      title="a new grant"
+      title="新建授权"
       trigger={
         <>
-          <Plus size={14} /> grant
+          <Plus size={14} /> 授权
         </>
       }
       triggerClass="act"
@@ -294,10 +294,10 @@ function NewGrant() {
         {problem ? (
           <p className="hint error-text">{problem}</p>
         ) : (
-          <p className="hint">A line per pattern: all, none, or any of {PERMISSIONS.join(', ')}.</p>
+          <p className="hint">每行一个模式：all、none，或 {PERMISSIONS.join('、')} 中任意几个。</p>
         )}
         <button type="submit" className="send small" disabled={busy || !named || !lines.trim()}>
-          grant
+          授权
         </button>
       </form>
     </Panel>

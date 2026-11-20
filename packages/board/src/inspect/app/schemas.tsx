@@ -20,7 +20,7 @@ export function Schemas(props: { state: State; viewer: Viewer; selected: string 
   const schemas = state.schemas
   const groups = schemasByName(schemas ?? [])
   if (state.schemasRefused !== null && schemas === null) return <p className="empty error">{state.schemasRefused}</p>
-  if (schemas === null) return <p className="empty">loading…</p>
+  if (schemas === null) return <p className="empty">加载中…</p>
   return (
     <>
       {props.viewer.manages && (
@@ -28,7 +28,7 @@ export function Schemas(props: { state: State; viewer: Viewer; selected: string 
           <RegisterSchema groups={groups} />
         </Actions>
       )}
-      {groups.length === 0 && <p className="empty">no schemas</p>}
+      {groups.length === 0 && <p className="empty">没有 schema</p>}
       {groups.map((group) => {
         const open = group.versions.find((schema) => schema.id === props.selected)
         const latest = group.versions.at(-1)!
@@ -46,7 +46,7 @@ export function Schemas(props: { state: State; viewer: Viewer; selected: string 
               <span className="schema-about" {...nativeMenu}>
                 {(open ?? latest).description ?? ''}
               </span>
-              <span className="faint small">{group.builtIn ? 'built in' : nameOf(state, latest.by ?? '')}</span>
+              <span className="faint small">{group.builtIn ? '内置' : nameOf(state, latest.by ?? '')}</span>
             </div>
             {open && <SchemaDetail schema={open} state={state} />}
           </section>
@@ -64,7 +64,7 @@ function SchemaDetail({ schema, state }: { schema: SchemaView; state: State }) {
   return (
     <div className="schema-detail">
       <p className="hint">
-        {schema.builtIn ? 'built in' : schema.by && schema.at ? (
+        {schema.builtIn ? '内置' : schema.by && schema.at ? (
           <>
             {nameOf(state, schema.by)} · <Ago iso={schema.at} />
           </>
@@ -78,7 +78,7 @@ function SchemaDetail({ schema, state }: { schema: SchemaView; state: State }) {
             <div key={field.name} className="schema-field">
               <span className="field-name">
                 {field.name}
-                {field.required && <span className="faint" title="required"> *</span>}
+                {field.required && <span className="faint" title="必填"> *</span>}
               </span>
               <span className="faint">{field.type}</span>
               <span>{field.description}</span>
@@ -92,12 +92,12 @@ function SchemaDetail({ schema, state }: { schema: SchemaView; state: State }) {
           className="act"
           onClick={() =>
             void navigator.clipboard.writeText(json).then(
-              () => toast(`copied ${schema.id}`),
-              () => toast(`couldn't copy ${schema.id}`),
+              () => toast(`已复制 ${schema.id}`),
+              () => toast(`无法复制 ${schema.id}`),
             )
           }
         >
-          copy
+          复制
         </button>
       </div>
     </div>
@@ -131,9 +131,9 @@ function RegisterSchema({ groups }: { groups: ReturnType<typeof schemasByName> }
     try {
       schema = JSON.parse(definition)
     } catch (error) {
-      return setProblem(`the definition isn't JSON: ${(error as Error).message}`)
+      return setProblem(`定义不是合法 JSON：${(error as Error).message}`)
     }
-    if (typeof schema !== 'object' || schema === null || Array.isArray(schema)) return setProblem('the definition is a JSON object')
+    if (typeof schema !== 'object' || schema === null || Array.isArray(schema)) return setProblem('定义必须是一个 JSON 对象')
     setBusy(true)
     const id = `${name.trim()}@${version.trim() || next}`
     const refused = await board.registerSchema({
@@ -152,10 +152,10 @@ function RegisterSchema({ groups }: { groups: ReturnType<typeof schemasByName> }
   }
   return (
     <Panel
-      title="register a schema version"
+      title="注册 schema 版本"
       trigger={
         <>
-          <Plus size={14} /> register
+          <Plus size={14} /> 注册
         </>
       }
       triggerClass="act"
@@ -171,19 +171,19 @@ function RegisterSchema({ groups }: { groups: ReturnType<typeof schemasByName> }
         {...fieldMenu}
       >
         <div className="label-add">
-          <Suggest className="grow" value={name} onChange={setName} items={own.map((group) => group.name)} placeholder="name, e.g. test-run" autoFocus />
+          <Suggest className="grow" value={name} onChange={setName} items={own.map((group) => group.name)} placeholder="名称，如 test-run" autoFocus />
           <span className="faint">@</span>
           <label className="suggest version">
             <input value={version} onChange={(event) => setVersion(event.target.value.replace(/\D/g, ''))} placeholder={String(next)} inputMode="numeric" />
           </label>
         </div>
         <label className="suggest">
-          <input value={description} onChange={(event) => setDescription(event.target.value)} placeholder="what it holds, in a line (optional)" />
+          <input value={description} onChange={(event) => setDescription(event.target.value)} placeholder="一句话说明它装什么（可选）" />
         </label>
         <textarea className="code" rows={10} value={definition} spellCheck={false} onChange={(event) => setDefinition(event.target.value)} />
-        {problem ? <p className="hint error-text">{problem}</p> : <p className="hint">A JSON Schema for an object. A version never changes.</p>}
+        {problem ? <p className="hint error-text">{problem}</p> : <p className="hint">一个面向对象的 JSON Schema。版本一经注册不再改变。</p>}
         <button type="submit" className="send small" disabled={busy || !name.trim()}>
-          register
+          注册
         </button>
       </form>
     </Panel>

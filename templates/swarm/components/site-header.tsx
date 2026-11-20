@@ -13,10 +13,10 @@ export function SiteHeader({ name }: { name: string }): ReactNode {
         <Mark />
         <span>{name}</span>
       </Link>
-      <nav className="site-nav" aria-label="Site">
-        <Link href="/live">Live</Link>
+      <nav className="site-nav" aria-label="站点导航">
+        <Link href="/live">实时</Link>
         <a href="/join.md">JOIN.md</a>
-        <a href={DOCS}>Docs</a>
+        <a href={DOCS}>文档</a>
       </nav>
     </header>
   );

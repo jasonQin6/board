@@ -15,7 +15,7 @@ export function Copy({ text, label, quiet }: { text: string; label?: string; qui
     <button
       type="button"
       className={quiet ? "link" : label ? "button secondary" : "copy"}
-      aria-label={label ? undefined : copied ? "Copied" : "Copy"}
+      aria-label={label ? undefined : copied ? "已复制" : "复制"}
       onClick={async () => {
         await navigator.clipboard.writeText(text);
         setCopied(true);
@@ -23,7 +23,7 @@ export function Copy({ text, label, quiet }: { text: string; label?: string; qui
       }}
     >
       {quiet ? null : copied ? <Check size={14} aria-hidden /> : <CopyIcon size={14} aria-hidden />}
-      {label ? (copied ? "Copied" : label) : null}
+      {label ? (copied ? "已复制" : label) : null}
     </button>
   );
 }

@@ -98,7 +98,7 @@ export async function setProfile(next: Profile | null | undefined): Promise<bool
     profile = next
     set((s) => ({ ...s, me }))
   } catch (error) {
-    toast(`couldn't switch: ${said(error)}`)
+    toast(`切换失败：${said(error)}`)
     return false
   }
   if (next) {
@@ -198,7 +198,7 @@ export async function boot() {
       if (queue.push(event) === 1) requestAnimationFrame(flush)
     },
     (feed) => set((s) => ({ ...s, live: feed === 'live' ? 'live' : 'reconnecting' })),
-  ).catch((error) => toast(`live updates stopped: ${said(error)}`))
+  ).catch((error) => toast(`实时更新已停止：${said(error)}`))
   // Who's who, for the names of a task's owner and holder; and the open tasks, for their count.
   void team.actors().then((actors) => set((s) => ({ ...s, actors: { ...Object.fromEntries(actors.map((actor) => [actor.id, actor])), ...s.actors } })), () => {})
   void loadSchemas()
@@ -348,7 +348,7 @@ export async function send(
       const scheduled = await team.schedule(post.re === null ? post.channel : { re: post.re }, { ...content, ...post.later })
       outgoing.delete(key)
       set((s) => ({ ...s, pending: s.pending.filter((p) => p.key !== key) }))
-      toast(`scheduled for ${new Date(scheduled.next ?? scheduled.first).toLocaleString()}`)
+      toast(`已定时于 ${new Date(scheduled.next ?? scheduled.first).toLocaleString()}`)
       void loadSchedules()
       return
     }
@@ -421,7 +421,7 @@ export async function saveAttachment(attachment: Attachment) {
     link.download = attachment.name
     link.click()
   } catch (error) {
-    toast(`couldn't download ${attachment.name}: ${said(error)}`)
+    toast(`下载 ${attachment.name} 失败：${said(error)}`)
   }
 }
 
@@ -622,7 +622,7 @@ export async function revokeGrant(id: string) {
     await askingFirst((options) => team.revokeGrant(id, options))
   } catch (error) {
     // A lockout they said no to is no failure: nothing was asked of the board again.
-    if (!lockout(error)) toast(`couldn't revoke ${id}: ${said(error)}`)
+    if (!lockout(error)) toast(`撤销 ${id} 失败：${said(error)}`)
   }
   await loadGrants()
 }
@@ -648,7 +648,7 @@ export async function cancelSchedule(id: string) {
   try {
     await team.cancelSchedule(id)
   } catch (error) {
-    toast(`couldn't cancel ${id}: ${said(error)}`)
+    toast(`取消 ${id} 失败：${said(error)}`)
   }
   await loadSchedules()
 }
@@ -681,10 +681,10 @@ export async function createChannel(path: string, options: { private?: boolean }
   try {
     const { channel, created } = await team.createChannel(path, options)
     set((s) => (s.channels[channel.path] ? s : { ...s, channels: { ...s.channels, [channel.path]: channel } }))
-    if (!created) toast(`#${path} is there already`)
+    if (!created) toast(`#${path} 已存在`)
     return true
   } catch (error) {
-    toast(`couldn't make #${path}: ${said(error)}`)
+    toast(`创建 #${path} 失败：${said(error)}`)
     return false
   }
 }

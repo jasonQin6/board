@@ -13,7 +13,7 @@ const attribute = (value: string) => value.replace(/[&<>"']/g, (char) => `&#${ch
  * are under too.
  */
 export const shell = ({ token, profile, base, named = false }: { token: string; profile: ProfileOption; base: string; named?: boolean }) => `<!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">

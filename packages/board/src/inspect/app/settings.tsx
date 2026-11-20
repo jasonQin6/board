@@ -15,6 +15,9 @@ import { cadence, firstLine, shownName, until } from './words.ts'
 
 const ActionsSlot = createContext<HTMLElement | null>(null)
 
+/** 设置各节的显示名（URL 路径保持原文）。 */
+const SECTION_WORDS: Record<string, string> = { access: '权限', schemas: 'Schemas', schedules: '定时消息', watchers: '监听器', sync: '同步' }
+
 /** A section's own actions, at the end of the tabs' row. */
 export function Actions({ children }: { children: ReactNode }) {
   const slot = useContext(ActionsSlot)
@@ -26,11 +29,11 @@ export function Settings(props: { state: State; viewer: Viewer; now: number; lea
   const [slot, setSlot] = useState<HTMLElement | null>(null)
   return (
     <>
-      <Header title="settings" lead={props.lead} flat />
+      <Header title="设置" lead={props.lead} flat />
       <nav className="tabs">
         {SECTIONS.map((name) => (
           <Link key={name} to={`/settings/${name}`} className="tab" current={name === section}>
-            {name}
+            {SECTION_WORDS[name] ?? name}
           </Link>
         ))}
         <span className="tab-actions" ref={setSlot} />
@@ -59,14 +62,14 @@ function Schedules({ state, viewer, now, all }: { state: State; viewer: Viewer; 
     <>
       {listed.is === 'here' && <Actions>
         <Link to="/settings/schedules" className="tab" current={!all}>
-          pending
+          待发
         </Link>
         <Link to="/settings/schedules?show=all" className="tab" current={all}>
-          all
+          全部
         </Link>
       </Actions>}
       <Unlisted listed={listed} />
-      {listed.is === 'here' && listed.items.length === 0 && <p className="empty">nothing scheduled</p>}
+      {listed.is === 'here' && listed.items.length === 0 && <p className="empty">没有定时消息</p>}
       {listed.is === 'here' &&
         listed.items.map((schedule) => (
           <div key={schedule.id} className="sched-row" {...nativeMenu}>
@@ -74,20 +77,20 @@ function Schedules({ state, viewer, now, all }: { state: State; viewer: Viewer; 
               {schedule.state === 'pending' && schedule.next ? until(schedule.next, now) : schedule.state}
             </span>
             <span className="faint">{cadence(schedule)}</span>
-            <span className="sched-text">{firstLine(schedule.text) || 'files only'}</span>
+            <span className="sched-text">{firstLine(schedule.text) || '仅文件'}</span>
             {schedule.re === null ? (
               <Link to={`/c/${schedule.channel}`} className="text-link">
                 #{schedule.channel}
               </Link>
             ) : (
               <Link to={here({ thread: schedule.re })} className="text-link">
-                reply in #{schedule.channel}
+                回复于 #{schedule.channel}
               </Link>
             )}
             <span className="faint small">{shownName(schedule.author)}</span>
             {schedule.state === 'pending' && (schedule.by.principal === viewer.principal || viewer.may('manage', schedule.channel)) ? (
               <button className="act quiet" onClick={() => void board.cancelSchedule(schedule.id)}>
-                cancel
+                取消
               </button>
             ) : (
               <span />
@@ -109,13 +112,13 @@ function Watchers({ state }: { state: State }) {
   return (
     <>
       <Unlisted listed={listed} />
-      {listed.is === 'here' && listed.items.length === 0 && <p className="empty">no watchers registered</p>}
+      {listed.is === 'here' && listed.items.length === 0 && <p className="empty">没有已注册的监听器</p>}
       {listed.is === 'here' &&
         listed.items.map((registration) => (
           <section key={registration.owner} className="registration" {...nativeMenu}>
             <h3>
               <b>{nameOf(state, registration.owner)}</b>
-              {registration.path ? ` · woken at ${registration.path}${registration.branch ? ` (${registration.branch})` : ''}` : registration.url ? ` · woken at ${registration.url}` : ' · pulls on its own'}
+              {registration.path ? ` · 在 ${registration.path}${registration.branch ? `（${registration.branch}）` : ''} 被唤醒` : registration.url ? ` · 在 ${registration.url} 被唤醒` : ' · 自行拉取'}
             </h3>
             {Object.entries(registration.watch).map(([id, watcher]) => (
               <div key={id} className="watch-row">
@@ -126,7 +129,7 @@ function Watchers({ state }: { state: State }) {
             {registration.sync.map((entry) => (
               <div key={entry.key} className="watch-row">
                 <span className="watch-id">{entry.key}</span>
-                <span className="faint">syncs {entry.platform}</span>
+                <span className="faint">同步 {entry.platform}</span>
               </div>
             ))}
           </section>
@@ -152,11 +155,11 @@ function Sync({ state, entry }: { state: State; entry: string | null }) {
     setEvents(null)
     load()
   }, [key])
-  if (entries.length === 0 || key === null) return <p className="empty">this board syncs nothing</p>
+  if (entries.length === 0 || key === null) return <p className="empty">本板没有同步任何来源</p>
   return (
     <>
       <Actions>
-        <button className="tool" title="refresh" onClick={load}>
+        <button className="tool" title="刷新" onClick={load}>
           <RefreshCw size={14} strokeWidth={1.75} />
         </button>
       </Actions>
@@ -169,8 +172,8 @@ function Sync({ state, entry }: { state: State; entry: string | null }) {
         ))}
       </nav>
       {error && <p className="empty error">{error}</p>}
-      {!error && events === null && <p className="empty">loading…</p>}
-      {events?.length === 0 && <p className="empty">no events yet</p>}
+      {!error && events === null && <p className="empty">加载中…</p>}
+      {events?.length === 0 && <p className="empty">还没有事件</p>}
       {events?.map((row) => {
         const event = row.event as { kind: string; text?: string; type?: string; emoji?: string; author?: { handle?: string } }
         return (

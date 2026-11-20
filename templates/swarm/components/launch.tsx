@@ -91,14 +91,14 @@ export function Launch({ repos, models, install }: { repos: string[]; models: Mo
         begin(async () => {
           const result = await start({ ...data, scenario, model });
           if (result.ok) {
-            setSaid({ ok: true, text: `Launched ${result.slug}. It clones the repo and starts its first agent in a minute or two.` });
+            setSaid({ ok: true, text: `已发起 ${result.slug}。它会克隆仓库，并在一两分钟内启动第一个代理。` });
             router.refresh();
           } else setSaid({ ok: false, text: result.problem });
         });
       }}
     >
       <label className="row">
-        <span>Repo</span>
+        <span>仓库</span>
         <select name="repo" required defaultValue={repos[0] ?? ""}>
           {repos.map((repo) => (
             <option key={repo} value={repo}>
@@ -109,12 +109,12 @@ export function Launch({ repos, models, install }: { repos: string[]; models: Mo
       </label>
       {install ? (
         <p className="note row-note">
-          Missing one? <a href={install}>Add it to the GitHub app</a>.
+          缺少仓库？<a href={install}>把它加到 GitHub 应用</a>。
         </p>
       ) : null}
 
       <fieldset className="row">
-        <legend>Scenario</legend>
+        <legend>场景</legend>
         <div className="choices">
           {SCENARIOS.map((id) => (
             <label key={id} className="choice" data-on={scenario === id ? "" : undefined}>
@@ -127,18 +127,18 @@ export function Launch({ repos, models, install }: { repos: string[]; models: Mo
       </fieldset>
 
       <label className="row">
-        <span>Goal</span>
+        <span>目标</span>
         <textarea
           name="goal"
           required
           minLength={15}
           rows={4}
-          placeholder={scenario === "pipeline" ? "Add input validation to every API route, with a test for each." : "Find security bugs: injection, missing auth checks, secrets in logs."}
+          placeholder={scenario === "pipeline" ? "给每个 API 路由加输入校验，并各配一个测试。" : "找出安全漏洞：注入、缺失的鉴权检查、日志里的密钥。"}
         />
       </label>
 
       <label className="row">
-        <span>Model</span>
+        <span>模型</span>
         {models.length ? (
           // Every model AI Gateway lists, by provider. A datalist would show only the ones matching what's filled in.
           <select name="model-pick" value={model} onChange={(event) => setModel(event.target.value)} required>
@@ -156,26 +156,26 @@ export function Launch({ repos, models, install }: { repos: string[]; models: Mo
           <input name="model-pick" value={model} onChange={(event) => setModel(event.target.value)} spellCheck={false} autoComplete="off" required />
         )}
       </label>
-      <p className="note row-note">{price ? perMillion(price) : models.length ? "No price listed for this model: give the run a time limit." : "Any AI Gateway model ID."}</p>
+      <p className="note row-note">{price ? perMillion(price) : models.length ? "该模型未列出价格：请给运行设一个时间上限。" : "任意 AI Gateway 模型 ID。"}</p>
 
       <div className="numbers">
         <label>
-          <span>Agents</span>
+          <span>代理数</span>
           <input name="agents" type="number" min={1} max={MAX_AGENTS} defaultValue={DEFAULTS.agents} required />
         </label>
         <label>
-          <span>Budget, $</span>
-          <input name="budgetUsd" type="number" min={1} max={10_000} defaultValue={DEFAULTS.budgetUsd ?? ""} placeholder="none" />
+          <span>预算（$）</span>
+          <input name="budgetUsd" type="number" min={1} max={10_000} defaultValue={DEFAULTS.budgetUsd ?? ""} placeholder="不限" />
         </label>
         <label>
-          <span>Minutes</span>
-          <input name="minutes" type="number" min={5} max={MAX_MINUTES} defaultValue={DEFAULTS.minutes ?? ""} placeholder={`${MAX_MINUTES} at most`} />
+          <span>时长（分钟）</span>
+          <input name="minutes" type="number" min={5} max={MAX_MINUTES} defaultValue={DEFAULTS.minutes ?? ""} placeholder={`最多 ${MAX_MINUTES}`} />
         </label>
       </div>
 
       <div className="submit">
         <button type="submit" className="button" disabled={pending || repos.length === 0}>
-          {pending ? "Launching" : "Launch"}
+          {pending ? "发起中" : "发起"}
         </button>
         {said ? (
           <p className={said.ok ? "said" : "said bad"} role="status">

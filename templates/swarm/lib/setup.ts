@@ -39,14 +39,14 @@ export function progress(steps: Step[]): { done: number; of: number; ready: bool
 }
 
 /** What a swarm is, in a line: under the page's title while it's being set up, and what a browser shows for the page. */
-export const ABOUT = "Many agents on one queue: point them at a repo with a goal, and watch them plan, build, and review.";
+export const ABOUT = "许多代理在一条队列上协作：给它们一个仓库和一个目标，看它们规划、构建、评审。";
 
 /** What the launcher says first. */
 export function headline(setup: Setup): { title: string; lede: string } {
-  if (setup.open) return { title: "Protect this deployment first", lede: "The swarm shows once only your team can open this page." };
+  if (setup.open) return { title: "先保护这个部署", lede: "只有你的团队能打开本页后，蜂群才会显示。" };
   return progress(setup.steps).ready
-    ? { title: "Launch a swarm", lede: "Pick a repo and a goal. Agents take the tasks one each, in sandboxes of their own, and report on the board." }
-    : { title: "Set up your swarm", lede: ABOUT };
+    ? { title: "发起一个蜂群", lede: "选一个仓库和一个目标。代理们各领一个任务，在各自的沙箱里工作，并在板面上汇报。" }
+    : { title: "搭建你的蜂群", lede: ABOUT };
 }
 
 type Env = Record<string, string | undefined>;
@@ -126,8 +126,8 @@ export async function setup(deps: Deps): Promise<Setup> {
   const project = token ? projectOf(token) : null;
   if (!local) {
     const shut = await closed(deps.host ?? deps.env.VERCEL_PROJECT_PRODUCTION_URL, deps.fetch);
-    if (shut instanceof Error) return { open: true, task: todo("Couldn't check that this deployment is protected", { hint: message(shut) }) };
-    if (!shut) return { open: true, task: todo("Turn on Vercel Authentication for all deployments", { link: { href: dashboard(project).settings("deployment-protection"), label: "Open Deployment Protection" } }) };
+    if (shut instanceof Error) return { open: true, task: todo("无法检查这个部署是否受保护", { hint: message(shut) }) };
+    if (!shut) return { open: true, task: todo("为所有部署开启 Vercel Authentication", { link: { href: dashboard(project).settings("deployment-protection"), label: "打开 Deployment Protection 设置" } }) };
   }
   const found: Found = { me: null, repos: [], install: null };
   const [vercel, github] = await Promise.all([vercelStep(deps, local, project, found), githubStep(deps, project, found)]);
@@ -140,39 +140,39 @@ async function vercelStep(deps: Deps, local: boolean, project: Project, found: F
   const signedOut = local && !deps.env.VERCEL_OIDC_TOKEN;
   const tasks: Task[] = [];
   if (!local) {
-    tasks.push(done("Turn on Deployment Protection"));
-    if (!project) return step("vercel", [...tasks, todo("Turn on OIDC Federation, then redeploy", { link: { href: links.settings("security"), label: "Open Security settings" } })]);
+    tasks.push(done("开启 Deployment Protection"));
+    if (!project) return step("vercel", [...tasks, todo("开启 OIDC Federation，然后重新部署", { link: { href: links.settings("security"), label: "打开安全设置" } })]);
   }
-  if (signedOut) tasks.push(todo("Link this directory, then restart the dev server", { commands: ["vercel link", "vercel env pull"] }));
+  if (signedOut) tasks.push(todo("关联本目录，然后重启 dev server", { commands: ["vercel link", "vercel env pull"] }));
 
   // The board is the team's, in Vercel's API. A team has one once someone on it has opened it.
-  const OPEN_BOARD = "Open the team's board once";
+  const OPEN_BOARD = "打开一次团队的板面";
   const access = await deps.me().catch((error: unknown) => (error instanceof Error ? error : new Error(String(error))));
   if (access instanceof Error) {
     const refused = ["board_not_granted", "no_board"].includes((access as { code?: string }).code ?? "");
     if (signedOut) tasks.push(todo(OPEN_BOARD));
     else if (refused) tasks.push(todo(OPEN_BOARD, { commands: [inspectCommand(project?.team)] }));
-    else tasks.push(todo("Couldn't reach the team's board", { hint: message(access) }));
+    else tasks.push(todo("无法连接团队的板面", { hint: message(access) }));
   } else {
     found.me = access;
     tasks.push(done(OPEN_BOARD));
-    const WRITE = `Let this project post and label under ${named(deps.swarm)}`;
+    const WRITE = `允许这个项目在 ${named(deps.swarm)} 下发言和打标签`;
     if (canRun(access, deps.swarm)) tasks.push(done(WRITE));
-    else tasks.push(todo(WRITE, { hint: "Its grants were narrowed. Whoever manages the board can widen them:", commands: [`vercel board grants create --project ${project?.name ?? "<project>"} --can '${deps.swarm}=read,post,react,label'`] }));
+    else tasks.push(todo(WRITE, { hint: "它的授权被收窄了。板面的管理者可以放宽：", commands: [`vercel board grants create --project ${project?.name ?? "<project>"} --can '${deps.swarm}=read,post,react,label'`] }));
   }
 
   const balance = await deps.credits().catch((error: unknown) => error);
   // A prepaid team's balance runs down to zero; a team billed for usage shows it as negative.
-  const CREDITS = "Add AI Gateway credits";
+  const CREDITS = "充值 AI Gateway 额度";
   if (typeof balance === "number" && balance !== 0) tasks.push(done(CREDITS));
-  else if (balance === 0) tasks.push(todo(CREDITS, { link: { href: `${links.team}/~/ai`, label: "Open AI Gateway" } }));
+  else if (balance === 0) tasks.push(todo(CREDITS, { link: { href: `${links.team}/~/ai`, label: "打开 AI Gateway" } }));
   else if (signedOut) tasks.push(todo(CREDITS));
-  else tasks.push(todo("Couldn't reach AI Gateway", { hint: message(balance) }));
+  else tasks.push(todo("无法连接 AI Gateway", { hint: message(balance) }));
 
   // Vercel's cron keeps runs going while nobody has the page open, and sends this secret so nothing else can.
   if (!local) {
-    const CRON = "Add a `CRON_SECRET` environment variable, then redeploy";
-    tasks.push(deps.env.CRON_SECRET ? done(CRON) : todo(CRON, { hint: "Any long random string. Vercel's cron sends it to keep runs going while nobody has this page open.", link: { href: links.settings("environment-variables"), label: "Open Environment Variables" } }));
+    const CRON = "添加 `CRON_SECRET` 环境变量，然后重新部署";
+    tasks.push(deps.env.CRON_SECRET ? done(CRON) : todo(CRON, { hint: "任意长随机字符串。Vercel 的 cron 会带上它，让运行在没人开着页面时也能继续。", link: { href: links.settings("environment-variables"), label: "打开环境变量设置" } }));
   }
   return step("vercel", tasks);
 }
@@ -205,14 +205,14 @@ const createConnector = (connector: string, project: Project) => {
 
 /** The connector, and the repos its app is on: what the launch form offers. */
 async function githubStep(deps: Deps, project: Project, found: Found): Promise<Step> {
-  const CONNECT = `Create the ${named(deps.connector)} connector`;
-  const INSTALL = "Install its app on the repos the swarm may work on";
+  const CONNECT = `创建 ${named(deps.connector)} 连接器`;
+  const INSTALL = "把它的应用安装到蜂群要干的仓库上";
   const token = await deps.connect(deps.connector).catch((error: unknown) => error);
   if (typeof token !== "string") {
     if (isLocal(deps.env) && !deps.env.VERCEL_OIDC_TOKEN) return step("github", [todo(CONNECT), todo(INSTALL)]);
     if (token instanceof Error && token.name === "ConnectorInstallationRequiredError") return step("github", [done(CONNECT), todo(INSTALL)]);
     if ((token as { code?: string } | null)?.code === "forbidden")
-      return step("github", [todo(`Attach ${named(deps.connector)} to this project`, { hint: "It's on this team for another project.", commands: [`vercel connect attach ${deps.connector}${project ? ` --project ${project.name} --scope ${project.team}` : ""}`] }), todo(INSTALL)]);
+      return step("github", [todo(`把 ${named(deps.connector)} 关联到这个项目`, { hint: "它已在本团队、用于另一个项目。", commands: [`vercel connect attach ${deps.connector}${project ? ` --project ${project.name} --scope ${project.team}` : ""}`] }), todo(INSTALL)]);
     return step("github", [todo(CONNECT, { commands: createConnector(deps.connector, project) }), todo(INSTALL)]);
   }
   const api = (path: string, init: RequestInit = {}) =>
@@ -225,12 +225,12 @@ async function githubStep(deps: Deps, project: Project, found: Found): Promise<S
   ]);
   const app = viewer?.replace(/\[bot\]$/, "") ?? null;
   found.install = app ? `https://github.com/apps/${app}/installations/new` : null;
-  const configure = found.install ? { link: { href: found.install, label: "Configure the app" } } : {};
-  if (repos instanceof Error) return step("github", [done(CONNECT), todo("Couldn't list the app's repos", { hint: message(repos) })]);
+  const configure = found.install ? { link: { href: found.install, label: "配置应用" } } : {};
+  if (repos instanceof Error) return step("github", [done(CONNECT), todo("无法列出应用的仓库", { hint: message(repos) })]);
   found.repos = repos;
   if (repos.length === 0) return step("github", [done(CONNECT), todo(INSTALL, configure)]);
-  const on = `On ${repos.length} ${repos.length === 1 ? "repo" : "repos"}.`;
-  return step("github", [done(CONNECT), done(INSTALL, { hint: on, ...(found.install ? { link: { href: found.install, label: "Add more" } } : {}) })]);
+  const on = `已装在 ${repos.length} 个仓库上。`;
+  return step("github", [done(CONNECT), done(INSTALL, { hint: on, ...(found.install ? { link: { href: found.install, label: "添加更多" } } : {}) })]);
 }
 
 /** The checks' real dependencies, loaded only when the launcher runs. */

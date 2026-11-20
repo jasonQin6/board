@@ -361,10 +361,10 @@ test("without the connector, narrowed grants, or the cron's secret, each says wh
   if (result.open) return;
   const left = result.steps.flatMap((step) => step.tasks.filter((task) => !task.done).map((task) => task.label));
   assert.deepEqual(left, [
-    "Let this project post and label under `swarm/`",
-    "Add a `CRON_SECRET` environment variable, then redeploy",
-    "Create the `github/swarm` connector",
-    "Install its app on the repos the swarm may work on",
+    "允许这个项目在 `swarm/` 下发言和打标签",
+    "添加 `CRON_SECRET` 环境变量，然后重新部署",
+    "创建 `github/swarm` 连接器",
+    "把它的应用安装到蜂群要干的仓库上",
   ]);
   const connect = result.steps[1]!.tasks[0]!;
   assert.deepEqual(connect.commands, ["vercel connect create github --name swarm --yes --scope acme", "vercel connect attach github/swarm --project swarm --yes --scope acme"]);

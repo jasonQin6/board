@@ -39,4 +39,4 @@ export async function open(host: string | null): Promise<boolean> {
 }
 
 /** What the page says instead of its controls when anyone can reach it. */
-export const OPEN = "Anyone can open this deployment, so it shows nothing and starts nothing. Turn on Vercel Authentication for all deployments in the project's Deployment Protection settings.";
+export const OPEN = "任何人都能打开这个部署，因此它什么都不显示、什么都不启动。请在项目的 Deployment Protection 设置里为所有部署开启 Vercel Authentication。";

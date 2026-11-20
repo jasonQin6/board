@@ -13,3 +13,6 @@ next-env.d.ts
 # eve (agent/)
 .eve
 .output
+
+# feeder 本机状态缓存（可随时删）
+tools/feeder/.feeder-state.json

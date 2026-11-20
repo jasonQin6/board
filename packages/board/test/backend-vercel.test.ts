@@ -73,7 +73,7 @@ async function drain(handle: ReturnType<typeof handleOn>) {
 }
 
 describe('vercel()', () => {
-  it("passes the conformance kit's core, schedules, grants, and attachments for a person, and skips what Vercel's API takes only from a deployment, and GitHub grants", async () => {
+  it("passes the conformance kit's core, schedules, grants, and attachments for a person, and skips what Vercel's API takes only from a deployment", async () => {
     const api = fakeMessageboard()
     // The API looks names up, so the grants checks name a project, a repository, a viewer, and an app its team has.
     const report = await conformance(handleOn(api), { withHeaders: withHeadersOn(api), principals: { project: 'prj_web', repository: 'acme/api', viewer: 'val@acme.com', app: 'ship' } })
@@ -148,7 +148,7 @@ describe('vercel()', () => {
       'grants: makes another grant for the same principals, and changes one by its ID': 'passed',
       "grants: keeps a grant's can as written, a pattern with no permissions included": 'passed',
       'grants: lets the most specific pattern decide, then the closest principal there, and adds up ties': 'passed',
-      'grants: lets everyone narrow what something else lets in, and lets no one in itself': 'skipped',
+      'grants: lets everyone narrow what something else lets in, and lets no one in itself': 'passed',
       'grants: caps a person by their team role, so a viewer reads but neither posts nor manages': 'passed',
       'grants: names an app by its slug or client ID, keeps it by client ID, and every app as a group': 'passed',
       'grants: takes manage at each pattern a grant names to change it, and at * to list them': 'passed',
@@ -2919,15 +2919,6 @@ describe('vercel()', () => {
     expect(await jb.explain('dev', { user: 'val@acme.com' })).toMatchObject({ pattern: '*', level: 'group', grants: [{ id: 'g1' }], capped: 'viewer', can: ['read', 'react'] })
     // An app on the team, by its slug: g3 lets every one in.
     expect(await jb.explain('dev', { app: 'ship' })).toMatchObject({ pattern: '*', level: 'group', grants: [{ id: 'g3' }], can: ['read', 'post', 'react', 'label'] })
-    // No grant names a repository's runs or an issuer, so neither is explained: an app stands in for them.
-    for (const principal of [{ github: 'acme/web', workflow: 'ci.yml' }, { oidc: 'https://gitlab.com', claims: { project_id: '42' } }])
-      await expect(jb.explain('ci', principal)).rejects.toMatchObject({
-        status: 400,
-        code: 'unsupported_principal',
-        origin: 'handle',
-        message: "Vercel's board explains no GitHub or OIDC caller: no grant names one.",
-        hint: 'Explain the app an OIDC exchange policy issues tokens for: --app <slug>.',
-      })
     expect((await jb.revokeGrant(grant.id)).revoked).toBe(true)
     expect(api.requests).toEqual(
       expect.arrayContaining([
@@ -2939,21 +2930,39 @@ describe('vercel()', () => {
     )
   })
 
-  it("refuses a grant naming a GitHub run or an OIDC issuer, made or added, saying an app stands in for it", async () => {
+  it("sends grants naming a repository's runs or an OIDC issuer to Vercel's API, made, added, and explained", async () => {
     const api = fakeMessageboard()
     const jb = handleOn(api)
-    const refusal = {
-      status: 400,
-      code: 'unsupported_principal',
-      origin: 'handle',
-      message: "Vercel's board takes no GitHub or OIDC principals in a grant.",
-      hint: 'Grant an app that an OIDC exchange policy issues tokens for: --app <slug>.',
+    const { grant } = await jb.createGrant({ principals: [{ kind: 'github', repository: 'acme/web', branch: 'main' }], can: { 'ci/': ['post'] } })
+    expect(grant.principals).toEqual([{ kind: 'github', repositoryId: '700001', repository: 'acme/web', branch: 'main' }])
+    const issuer = { kind: 'oidc', issuer: 'https://gitlab.com', claims: { project_path: 'acme/api' } } as const
+    const updated = await jb.updateGrant(grant.id, { add: [issuer] })
+    expect(updated.grant.principals).toEqual([{ kind: 'github', repositoryId: '700001', repository: 'acme/web', branch: 'main' }, issuer])
+    const [made] = (await jb.createGrants([{ principals: [{ kind: 'github', repository: 'acme/api', event: 'push' }], can: { 'deploys/': ['read'] } }])).grants
+    expect(made?.principals).toEqual([{ kind: 'github', repositoryId: '700002', repository: 'acme/api', event: 'push' }])
+    // What the API decides for a run on main, and for one on another branch, which the grant doesn't name.
+    expect(await jb.explain('ci/www', { github: 'acme/web', branch: 'main' })).toMatchObject({ pattern: 'ci/', level: 'principal', grants: [{ id: grant.id }], can: ['post'] })
+    expect(await jb.explain('ci/www', { github: 'acme/web', branch: 'dev' })).toMatchObject({ pattern: null, grants: [], can: [] })
+    expect(await jb.explain('ci/www', { oidc: 'https://gitlab.com', claims: { project_path: 'acme/api' } })).toMatchObject({ pattern: 'ci/', grants: [{ id: grant.id }], can: ['post'] })
+  })
+
+  it("says what an API that takes no GitHub or OIDC principal answers, in its own words and nothing else", async () => {
+    const api = fakeMessageboard()
+    const refused = { code: 'unsupported_principal', message: 'Grants name no GitHub or OIDC principals.' }
+    // An API from before it took them, which answers each with a 400 of its own.
+    const older: typeof fetch = async (input, init = {}) => {
+      const url = new URL(input instanceof Request ? input.url : String(input))
+      const body = typeof init.body === 'string' ? init.body : ''
+      if ((url.pathname.includes('/grants') && /"kind":"(github|oidc)"/.test(body)) || url.searchParams.has('github') || url.searchParams.has('oidc'))
+        return Response.json({ error: refused }, { status: 400 })
+      return as(api, 'user:u_jb')(input, init)
     }
-    for (const principal of [{ kind: 'github', repository: 'acme/web' }, { kind: 'oidc', issuer: 'https://gitlab.com', claims: { project_id: '42' } }] as const)
-      await expect(jb.createGrant({ principals: [principal], can: { 'ci/': ['post'] } })).rejects.toMatchObject(refusal)
+    const jb = board({ backend: vercel({ team: 'team_test', api: API, fetch: older }) })
+    const theirs = { status: 400, ...refused, origin: 'board', hint: undefined }
+    await expect(jb.createGrant({ principals: [{ kind: 'github', repository: 'acme/web' }], can: { 'ci/': ['post'] } })).rejects.toMatchObject(theirs)
     const { grant } = await jb.createGrant({ principals: [{ kind: 'app', app: 'ship' }], can: { 'ci/': ['post'] } })
-    await expect(jb.updateGrant(grant.id, { add: [{ kind: 'github', repository: 'acme/web' }] })).rejects.toMatchObject(refusal)
-    expect((await jb.grants()).find((found) => found.id === grant.id)?.principals).toEqual([{ kind: 'app', clientId: 'oac_1', name: 'ship' }])
+    await expect(jb.updateGrant(grant.id, { add: [{ kind: 'oidc', issuer: 'https://gitlab.com', claims: { project_id: '42' } }] })).rejects.toMatchObject(theirs)
+    await expect(jb.explain('ci', { github: 'acme/web' })).rejects.toMatchObject(theirs)
   })
 
   it("gives back grants' times as the protocol has them, though the API answers milliseconds", async () => {

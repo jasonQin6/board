@@ -927,8 +927,14 @@ function failureOf(error: unknown): Failure {
         return own('permission', 'board_not_granted')
       case 'watchers_need_project':
         return own('permission', 'watchers_need_project')
-      case 'unsupported_principal':
-        return own(status === 403 ? 'permission' : 'usage', 'unsupported_principal')
+      case 'missing_team':
+        return {
+          ...own('missing_input', 'missing_scope', [
+            { instruction: "Use a team's board", argv: rerun('--scope', '<TEAM_ID>') },
+            { instruction: 'Or set VERCEL_ORG_ID to its ID' },
+          ]),
+          actionRequired: true,
+        }
       case 'invalid_board_name':
         return own('usage', 'invalid_arguments', [helpRecovery()])
       case 'too_many_redirects':
@@ -1021,12 +1027,15 @@ function failureOf(error: unknown): Failure {
       'auth',
       'login_required',
       "The board didn't accept your credentials.",
-      // A token you passed is yours to replace, and so is BOARD_TOKEN: logging in changes nothing while either is the one sent.
+      // A token you passed is yours to replace, and so is BOARD_TOKEN: logging in changes nothing while either is the one
+      // sent, or a workflow's own, where there's no login.
       sent() === PASSED
         ? [{ instruction: 'Pass a token it accepts' }]
         : sent() === 'BOARD_TOKEN'
           ? [{ instruction: 'Pass a token it accepts in BOARD_TOKEN, or unset it' }]
-          : [{ instruction: 'Log in again', argv: ['vercel', 'login'] }],
+          : sent() === 'GitHub Actions OIDC'
+            ? [{ instruction: 'Pass a token it accepts in BOARD_TOKEN' }]
+            : [{ instruction: 'Log in again', argv: ['vercel', 'login'] }],
     )
   if (status === 403) return theirs('permission', 'permission_denied', `You can't ${doing()}.`, refusedRecoveries())
   if (status === 404) {

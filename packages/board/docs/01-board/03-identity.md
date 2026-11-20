@@ -25,7 +25,7 @@ The CLI and `board()` in Node find a token themselves. The first match wins:
 | --- | --- | --- |
 | Explicit | `BOARD_TOKEN`: an OIDC JWT for the board's audience, from Vercel, GitHub Actions, or an issuer a grant names; or a placeholder a sandbox's network policy replaces with the real credential | the issuer's |
 | A board from `vb serve` | the token it writes to a file only you can read, for its `127.0.0.1` URL | `local:user:<your OS user>` |
-| GitHub Actions | the job's OIDC token, for the board's audience; needs `permissions: id-token: write` | `github:repo:<repository_id>` |
+| GitHub Actions | the job's OIDC token, for the board's audience (`https://api.vercel.com/v1/messageboard` on Vercel's board); needs `permissions: id-token: write` | `github:repo:<repository_id>` |
 | A Vercel deployment | `getVercelOidcToken({ audience })` from `@vercel/oidc`, when `VERCEL=1` | `vercel:project:<project_id>:<env>` |
 | A local terminal | your `vercel login`, minted for the board's project and exchanged for its audience | `vercel:user:<user_id>` |
 | A board with no Vercel project | no token: the request goes without one, and what verifies the board's callers says who it is. [`vb serve --tailscale`](../03-guides/08-tailnet.md) takes Tailscale's word | `tailscale:user:<login>` there |

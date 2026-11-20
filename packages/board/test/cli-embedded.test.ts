@@ -1138,26 +1138,88 @@ describe('the embedded CLI', () => {
     }
   })
 
-  it("says what Vercel's board refuses: a grant naming a GitHub run or an OIDC issuer", async () => {
+  it("takes a grant naming a repository's runs or an OIDC issuer on Vercel's board, and says an older API's refusal in its own words", async () => {
     const home = await isolated()
     vi.stubEnv('VERCEL_AUTH_TOKEN', 'user:u_jb')
     const api = fakeMessageboard()
-    const fetching = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => api.fetch(input, init))
+    // An API from before it took them, which answers each with a 400 of its own.
+    let older = false
+    const fetching = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const asked = new URL(input instanceof Request ? input.url : String(input))
+      if (older && ((typeof init?.body === 'string' && /"kind":"(github|oidc)"/.test(init.body)) || asked.searchParams.has('github')))
+        return Response.json({ error: { code: 'unsupported_principal', message: 'Grants name no GitHub or OIDC principals.' } }, { status: 400 })
+      return api.fetch(input, init)
+    })
     const run = (...args: string[]) => capture(() => main([...args, '--scope', 'test'], { name: 'board', commands: local }))
     const cwd = process.cwd()
     process.chdir(home)
     try {
-      const grant = "error: Vercel's board takes no GitHub or OIDC principals in a grant.\n\n  Grant an app that an OIDC exchange policy issues tokens for: --app <slug>.\n"
-      expect(await run('grants', 'create', '--github', 'acme/web', '--can', 'ci/=post')).toMatchObject({ code: 2, stdout: '', stderr: grant })
-      expect(await run('grants', 'create', '--oidc', 'https://gitlab.com', '--claim', 'project_id=42', '--can', 'ci/=post')).toMatchObject({ code: 2, stderr: grant })
-      const json = JSON.parse((await run('grants', 'create', '--github', 'acme/web', '--can', 'ci/=post', '--json')).stderr)
-      expect(json).toMatchObject({ status: 'error', reason: 'unsupported_principal', hint: 'Grant an app that an OIDC exchange policy issues tokens for: --app <slug>.' })
-      expect(await run('grants', 'explain', 'ci', '--github', 'acme/web')).toMatchObject({
-        code: 2,
-        stderr: "error: Vercel's board explains no GitHub or OIDC caller: no grant names one.\n\n  Explain the app an OIDC exchange policy issues tokens for: --app <slug>.\n",
+      expect(await run('grants', 'create', '--github', 'acme/web', '--git-branch', 'main', '--can', 'ci/=post')).toEqual({ code: 0, stdout: 'created g4  --github acme/web --git-branch main  ci/=post\n', stderr: '' })
+      expect(await run('grants', 'create', '--oidc', 'https://gitlab.com', '--claim', 'project_path=acme/api', '--can', 'deploys=post')).toEqual({
+        code: 0,
+        stdout: 'created g5  --oidc https://gitlab.com --claim project_path=acme/api  deploys=post\n',
+        stderr: '',
       })
-      // An app gets in, as the hint says.
-      expect((await run('grants', 'create', '--app', 'ship', '--can', 'ci/=post')).stdout).toMatch(/^created g4  --app ship  ci\/=post\n$/)
+      expect(await run('grants', 'explain', 'ci/www', '--github', 'acme/web', '--git-branch', 'main')).toEqual({ code: 0, stdout: 'ci/ wins. Closest grant for acme/web: g4 (--github): post.\n', stderr: '' })
+      older = true
+      // The API's words, and no way out of the handle's: it doesn't know what this API takes.
+      expect(await run('grants', 'create', '--github', 'acme/web', '--can', 'ci/=post')).toEqual({ code: 2, stdout: '', stderr: "error: Can't create the grant.\n  Grants name no GitHub or OIDC principals.\n" })
+      expect(JSON.parse((await run('grants', 'create', '--github', 'acme/web', '--can', 'ci/=post', '--json')).stderr)).toEqual({
+        status: 'error',
+        reason: 'unsupported_principal',
+        message: "Can't create the grant.",
+        data: { error: { code: 'unsupported_principal', message: 'Grants name no GitHub or OIDC principals.', status: 400 } },
+      })
+      expect(await run('grants', 'explain', 'ci', '--github', 'acme/web')).toEqual({ code: 2, stdout: '', stderr: "error: Can't explain ci.\n  Grants name no GitHub or OIDC principals.\n" })
+    } finally {
+      fetching.mockRestore()
+      process.chdir(cwd)
+      await rm(home, { recursive: true, force: true })
+    }
+  })
+
+  it("goes as a GitHub Actions job's own OIDC token on Vercel's board, and says what to do when no team or token works", async () => {
+    const home = await isolated()
+    const part = (value: object) => Buffer.from(JSON.stringify(value)).toString('base64url')
+    const job = `${part({ alg: 'none' })}.${part({ repository: 'acme/web', exp: Math.floor(Date.now() / 1000) + 3600 })}.`
+    const api = fakeMessageboard({ tokens: { [job]: 'github:repo:700001' } })
+    vi.stubEnv('ACTIONS_ID_TOKEN_REQUEST_URL', 'https://actions.example/token')
+    vi.stubEnv('ACTIONS_ID_TOKEN_REQUEST_TOKEN', 'request-for-the-cli')
+    // GitHub mints a token Vercel's API takes, or with another job's request token, one it doesn't.
+    const fetching = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : String(input))
+      if (url.origin === 'https://actions.example') return Response.json({ value: process.env.ACTIONS_ID_TOKEN_REQUEST_TOKEN === 'request-for-the-cli' ? job : 'not-a-token' })
+      return api.fetch(input, init)
+    })
+    const run = (...args: string[]) => capture(() => main(args, { name: 'board', commands: local }))
+    // Someone who manages the board let the repository's runs post in ci/.
+    await board({ backend: vercel({ team: 'team_test', api: 'http://localhost', fetch: as(api, 'user:u_jb') }) }).createGrant({ principals: [{ kind: 'github', repository: 'acme/web' }], can: { 'ci/': ['post'] } })
+    const cwd = process.cwd()
+    process.chdir(home)
+    try {
+      vi.stubEnv('VERCEL_ORG_ID', 'team_test')
+      expect(await run('whoami')).toEqual({
+        code: 0,
+        stdout: 'acme/web (github:repo:700001)\nboard   https://api.vercel.com/v1/messageboard/boards/brd_test?teamId=team_test\nsource  GitHub Actions OIDC\ncan     ci/  post\n',
+        stderr: '',
+      })
+      expect(await run('post', 'ci', 'deploy failed')).toMatchObject({ code: 0, stdout: expect.stringMatching(/^msg_[0-9a-f-]{36}_1\n$/) })
+      // A token that names no team, and nothing that does: a board by its name, with no --scope or VERCEL_ORG_ID.
+      vi.stubEnv('VERCEL_ORG_ID', '')
+      expect(await run('post', 'ci', 'deploy failed', '--name', 'ops')).toEqual({
+        code: 2,
+        stdout: '',
+        stderr: "error: A GitHub Actions token names no Vercel team, so there's no team's board to use.\n\n  Use a team's board:\n    vb post ci 'deploy failed' --name ops --scope <TEAM_ID>\n  Or set VERCEL_ORG_ID to its ID\n",
+      })
+      expect(JSON.parse((await run('post', 'ci', 'deploy failed', '--name', 'ops', '--json')).stderr)).toMatchObject({ status: 'action_required', reason: 'missing_scope' })
+      // A token Vercel's API doesn't take: no login in the job to log in again with.
+      vi.stubEnv('VERCEL_ORG_ID', 'team_test')
+      vi.stubEnv('ACTIONS_ID_TOKEN_REQUEST_TOKEN', 'request-for-another-job')
+      expect(await run('post', 'ci', 'deploy failed')).toEqual({
+        code: 1,
+        stdout: '',
+        stderr: "error: The board didn't accept your credentials.\n  This token is invalid, expired, or revoked.\n\n  Pass a token it accepts in BOARD_TOKEN\n",
+      })
     } finally {
       fetching.mockRestore()
       process.chdir(cwd)

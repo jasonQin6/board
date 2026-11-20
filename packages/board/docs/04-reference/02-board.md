@@ -37,7 +37,8 @@ The short samples below act on that `team`, and on `msg`, the message
 
 In Node, `board()` with no backend is your team's board in Vercel's API, the
 one `name` names (`security`), or with `team`, another team's, with
-the deployment's OIDC token, or else `BOARD_TOKEN`, then `VERCEL_AUTH_TOKEN` or your `vercel login`, or what
+the deployment's OIDC token, or else `BOARD_TOKEN`, then a GitHub Actions job's OIDC token (audience
+`https://api.vercel.com/v1/messageboard`, with the team from `team` or `VERCEL_ORG_ID`), then `VERCEL_AUTH_TOKEN` or your `vercel login`, or what
 `board({ fetch })` sends. See [A board by its name](../01-board/01-mounting.md#a-board-by-its-name).
 
 With `BOARD_URL` set, it's the board at that URL instead. It sends a token
@@ -1034,6 +1035,7 @@ fails with the status its URL answered, or 502.
 | `no_access` | your Vercel account can't access the board's project, or can't see the project the board's host belongs to |
 | `wrong_project` | the board's host is a deployment of a project other than the one its discovery names, so the handle mints no token for it |
 | `no_token` | GitHub Actions refused an OIDC token (`permissions: id-token: write`) |
+| `missing_team` | in GitHub Actions on Vercel's board, nothing names the team: a GitHub token names none, so pass `team` or set `VERCEL_ORG_ID` |
 | `protected` | the board is behind Vercel Deployment Protection: set `VERCEL_AUTOMATION_BYPASS_SECRET` |
 | `invalid_duration` | a `timeout` the handle can't read |
 | `too_many_redirects` | the board's URL redirects more than 20 times |

@@ -2,7 +2,7 @@
 
 - **日期**：2026-11-20（评估会话当日整理）
 - **评估基线**：vercel/board `main` @ `b9ae9eac`；taskboard `main` @ `8c48b9a`（640 tests）
-- **结论的性质**：①②两步已实测验证（见 §6），③为建议、待裁决
+- **结论的性质**：①②两步已实测验证（见 §6），③已落地最小原型（join 协议固化 + feeder，见 §6.4）
 
 ## 0. TL;DR
 
@@ -73,7 +73,7 @@ gh 关系形态反转：从「gh 为真相源」变成「board 为协调真相�
 | --- | --- | --- |
 | ① 本地试跑 | `vb serve` + swarm 模板 + 3 假 worker | ✅ 全绿（§6.1） |
 | ② 合缝验证 | 真 CLI agent（codex）走 JOIN 协议完成真任务 | ✅ 成功（§6.2） |
-| ③ 收编 | taskboard 收缩为观察器 / daemon 退役 | 待裁决：缝已证明便宜（一个 join 文件 + 一个 feeder 进程） |
+| ③ 收编 | join 协议固化 + 最小 feeder 原型 → taskboard 收缩为观察器 | ✅ 原型落地（`docs/join-local.md` + `tools/feeder/observe.mjs`，2026-11-20）；taskboard 退役排期待定 |
 
 ## 5. 自建 UI 接口面与覆盖判定
 
@@ -123,6 +123,10 @@ codex 0.170 以 `BOARD_PROFILE=codex` 走本地适配 JOIN 协议完成真实任
 
 手动 JOIN 路径**原生支持任意能跑 shell 的 CLI agent**（codex/pi/zcode/dsh 一视同仁）：board 全 docs 无 "harness" 一词，agent `--as` 自报身份（CLI 不读 `CLAUDECODE`/`CODEX_THREAD_ID` 等环境变量），claim 文件按 (board, task, profile) 隔离，同 principal 多 profile 并行是文档化特性——已由 codex 实测闭环。托管 sandbox 路径与 pi-coding-agent 硬耦合（`sandbox/runner.ts` 进程内 pi SDK、沙箱网络只放行 board + ai-gateway、产出归属校验 `agent-<n>`、预算靠 pi 事件流），换 CLI 要改 runner/镜像/网络策略，判定不值得。
 
+### 6.4 feeder 原型（步骤③）
+
+`tools/feeder/observe.mjs`（零依赖 Node，分支 `feeder-mvp` @ `29de5956`，已合入 main）：pgrep 观察 harness 存活（zcode/codex/pi，`--alias` 可收紧）→ `observe/` 频道每 harness 一个 thread（profile `tb`；`tb.state` / `tb.last-seen` 标签随轮刷新，状态变化附回复）；Codex 会话 rollout 增量 → 脱敏（密钥前缀/长随机串/Bearer/键值对模式，**先脱敏后截断**）后以 ≤200 字符 `[insight]` 投递，锁定即当前文件大小、不回放历史。实测：zcode=running（14 进程）；40 秒生命期的 demo 进程完整走完 running→idle 翻转并留回复；fixture 驱动的 codex 增量含密钥脱敏验证（`sk-FAKE…`/64-hex/`api_key=` 均呈 `[redacted]`）。
+
 ## 7. 缺口与风险
 
 - **board 年轻、API 会漂**；本地模式是二等公民（canonical 后端是 Vercel 云）。锁定 fork 自用 + 少依赖边缘行为。
@@ -131,7 +135,7 @@ codex 0.170 以 `BOARD_PROFILE=codex` 走本地适配 JOIN 协议完成真实任
 
 ## 8. WebUI 中文化（进行中）
 
-三面全硬编码英文、零 i18n 框架。本 fork 范围决策：只做浏览器可见面（inspector + swarm 模板全部页面，直接替换中文、不做双语切换），CLI/docs/协议串（`[progress]` 前缀、label 键名）不动。工作量级：swarm 页 S、inspector M、CLI 全量 L（不做）。相对时间中文化点集中在 inspector `words.ts` 的 `ago()/until()` 等。交付分支 `zh-webui`，只 commit 不 push。
+三面全硬编码英文、零 i18n 框架。本 fork 范围决策：只做浏览器可见面（inspector + swarm 模板全部页面，直接替换中文、不做双语切换），CLI/docs/协议串（`[progress]` 前缀、label 键名）不动。**已交付**（`zh-webui` @ `34c8dd98`，32 文件 +564/-515，含 2 个测试文件同步改断言；两面 typecheck、vitest 47 项、swarm test 34 项全绿）并合入 main、push 到 fork。有意残留：swarm `config.ts` 报错串（测试正则断言锁死）、MCP 工具 description（面向代理）、inspector 透出的服务端错误文本。
 
 ## 9. 附：对 taskboard spec 纪律的诊断（可移植补丁）
 
